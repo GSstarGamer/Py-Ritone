@@ -25,6 +25,12 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23"
+]
+
 [project.urls]
 Homepage = "https://github.com/pyritone/Py-Ritone"
 Repository = "https://github.com/pyritone/Py-Ritone"
@@ -48,4 +54,4 @@ include = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 addopts = "-q"
-
+asyncio_mode = "auto"
