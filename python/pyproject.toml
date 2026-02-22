@@ -32,8 +32,8 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pyritone/Py-Ritone"
-Repository = "https://github.com/pyritone/Py-Ritone"
+Homepage = "https://github.com/GSstarGamer/Py-Ritone"
+Repository = "https://github.com/GSstarGamer/Py-Ritone"
 
 [project.scripts]
 pyritone = "pyritone.cli:main"
@@ -55,3 +55,4 @@ include = [
 pythonpath = ["src"]
 addopts = "-q"
 asyncio_mode = "auto"
+
