@@ -34,6 +34,34 @@ def default_bridge_info_path() -> Path:
     return default_minecraft_dir() / DEFAULT_BRIDGE_INFO_RELATIVE
 
 
+def _repo_dev_bridge_info_candidates() -> tuple[Path, ...]:
+    candidates: list[Path] = []
+
+    # Repository-relative path when running from checkout.
+    repo_root = Path(__file__).resolve().parents[3]
+    candidates.append(repo_root / "mod" / "run" / DEFAULT_BRIDGE_INFO_RELATIVE)
+
+    # Common working directories during local development.
+    cwd = Path.cwd()
+    candidates.append(cwd / "mod" / "run" / DEFAULT_BRIDGE_INFO_RELATIVE)
+    candidates.append(cwd.parent / "mod" / "run" / DEFAULT_BRIDGE_INFO_RELATIVE)
+
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        unique.append(candidate)
+
+    return tuple(unique)
+
+
+def auto_bridge_info_paths() -> tuple[Path, ...]:
+    return (default_bridge_info_path(), *_repo_dev_bridge_info_candidates())
+
+
 def load_bridge_info(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
@@ -57,15 +85,25 @@ def resolve_bridge_info(
     env_port = os.getenv("PYRITONE_PORT")
     env_token = os.getenv("PYRITONE_TOKEN")
 
-    selected_info_path = (
-        Path(bridge_info_path)
-        if bridge_info_path is not None
-        else Path(env_bridge_info_path)
-        if env_bridge_info_path
-        else default_bridge_info_path()
-    )
+    if bridge_info_path is not None:
+        selected_paths = [Path(bridge_info_path)]
+    elif env_bridge_info_path:
+        selected_paths = [Path(env_bridge_info_path)]
+    else:
+        selected_paths = list(auto_bridge_info_paths())
 
-    file_values = load_bridge_info(selected_info_path)
+    checked_paths: list[Path] = []
+    file_values: dict[str, Any] = {}
+
+    for candidate_path in selected_paths:
+        checked_paths.append(candidate_path)
+        values = load_bridge_info(candidate_path)
+        if not values:
+            continue
+
+        file_values = values
+        if values.get("token"):
+            break
 
     resolved_host = host or env_host or str(file_values.get("host") or DEFAULT_HOST)
 
@@ -80,8 +118,10 @@ def resolve_bridge_info(
 
     resolved_token = token or env_token or file_values.get("token")
     if not resolved_token:
+        checked = ", ".join(str(path) for path in checked_paths)
         raise DiscoveryError(
-            "No bridge token found. Start Minecraft with the pyritone_bridge mod first or set PYRITONE_TOKEN."
+            "No bridge token found. Start Minecraft with the pyritone_bridge mod first or set PYRITONE_TOKEN. "
+            f"Checked paths: {checked}"
         )
 
     protocol_version = file_values.get("protocol_version")

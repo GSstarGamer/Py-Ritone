@@ -11,6 +11,7 @@ from .commands.sync_info import SyncInfoCommands
 from .commands.sync_navigation import SyncNavigationCommands
 from .commands.sync_waypoints import SyncWaypointsCommands
 from .commands.sync_world import SyncWorldCommands
+from .settings import SyncSettingsNamespace
 
 
 class _LoopThread:
@@ -68,6 +69,8 @@ class PyritoneClient(
             timeout=timeout,
         )
         self._connected = False
+
+        self.settings = SyncSettingsNamespace(self)
 
     def __enter__(self) -> "PyritoneClient":
         self.connect()

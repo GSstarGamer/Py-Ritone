@@ -39,6 +39,36 @@ Command aliases are exposed too (`qmark`, `stop`, `wp`, etc). Full generated ref
 
 - `python/docs/baritone-commands.md`
 
+## Settings API
+
+You can control Baritone settings through a settings namespace.
+
+```python
+from pyritone import PyritoneClient
+
+with PyritoneClient() as client:
+    client.settings.allowSprint = True
+    client.settings.allowBreak = False
+
+    print(client.settings.allowSprint.get())
+    print(client.settings.allowSprint.toggle())
+    print(client.settings.allowSprint.reset())
+```
+
+Async style:
+
+```python
+from pyritone import AsyncPyritoneClient
+
+client = AsyncPyritoneClient()
+await client.connect()
+try:
+    await client.settings.allowSprint.set(True)
+    await client.settings.allowSprint.get()
+finally:
+    await client.close()
+```
+
 ## Low-level API still available
 
 - `execute("...")`
@@ -86,9 +116,10 @@ cd ..\mod
 ```
 
 2. Join a world.
-3. Run the example script:
+3. Run one of the example scripts:
 
 ```powershell
 cd ..\python
-python example.py --x 100 --y 70 --z 100
+python example_sync.py
+python example_async.py
 ```

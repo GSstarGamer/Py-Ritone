@@ -13,6 +13,7 @@ from .commands.async_world import AsyncWorldCommands
 from .discovery import resolve_bridge_info
 from .models import BridgeError, BridgeInfo
 from .protocol import decode_line, encode_line, new_request
+from .settings import AsyncSettingsNamespace
 
 
 class AsyncPyritoneClient(
@@ -47,6 +48,8 @@ class AsyncPyritoneClient(
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
         self._events: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._closed = True
+
+        self.settings = AsyncSettingsNamespace(self)
 
     @property
     def bridge_info(self) -> BridgeInfo | None:
