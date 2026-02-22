@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from pathlib import Path
 from typing import Any
 
 from .client_async import AsyncPyritoneClient
@@ -11,6 +12,9 @@ from .commands.sync_info import SyncInfoCommands
 from .commands.sync_navigation import SyncNavigationCommands
 from .commands.sync_waypoints import SyncWaypointsCommands
 from .commands.sync_world import SyncWorldCommands
+from .commands._types import CommandDispatchResult
+from .models import BridgeError
+from .schematic_paths import normalize_build_coords, normalize_schematic_path
 from .settings import SyncSettingsNamespace
 
 
@@ -108,3 +112,39 @@ class PyritoneClient(
 
     def wait_for_task(self, task_id: str) -> dict[str, Any]:
         return self._runner.run(self._client.wait_for_task(task_id))
+
+    def build_file(
+        self,
+        path: str | Path,
+        *coords: int,
+        base_dir: str | Path | None = None,
+    ) -> CommandDispatchResult:
+        """Dispatch Baritone `build` using a local schematic path.
+
+        Relative paths resolve from the calling Python file directory by default.
+        Use `base_dir` to override that base path.
+
+        Coordinate args must be either:
+        - none (build at player position), or
+        - exactly three ints `(x, y, z)`.
+        """
+        normalized_path = normalize_schematic_path(path, base_dir=base_dir)
+        normalized_coords = normalize_build_coords(coords)
+        return self.build(normalized_path, *normalized_coords)
+
+    def build_file_wait(
+        self,
+        path: str | Path,
+        *coords: int,
+        base_dir: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Dispatch `build_file` and wait for terminal task event.
+
+        Raises `BridgeError(code=\"BAD_RESPONSE\", ...)` when dispatch response
+        does not include a `task_id`.
+        """
+        dispatch = self.build_file(path, *coords, base_dir=base_dir)
+        task_id = dispatch.get("task_id")
+        if not task_id:
+            raise BridgeError("BAD_RESPONSE", "No task_id returned for command: build", dispatch["raw"])
+        return self.wait_for_task(task_id)

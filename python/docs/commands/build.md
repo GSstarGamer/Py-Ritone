@@ -29,6 +29,46 @@ CommandDispatchResult
 - [Errors and troubleshooting](../errors-and-troubleshooting.md)
 - [Alias methods](aliases.md)
 
+## Pyritone Build Helpers
+
+Extra helpers for local schematic files relative to your Python script.
+
+### Sync example
+```python
+from pyritone import PyritoneClient
+
+with PyritoneClient() as client:
+    dispatch = client.build_file("schematics/base", 100, 70, 100)
+    print(dispatch)
+    terminal = client.build_file_wait("schematics/base", 100, 70, 100)
+    print(terminal)
+```
+
+### Async example
+```python
+import asyncio
+from pyritone import AsyncPyritoneClient
+
+async def main() -> None:
+    client = AsyncPyritoneClient()
+    await client.connect()
+    try:
+        dispatch = await client.build_file("schematics/base", 100, 70, 100)
+        print(dispatch)
+        terminal = await client.build_file_wait("schematics/base", 100, 70, 100)
+        print(terminal)
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Notes
+- Relative paths are resolved from the calling Python file directory by default.
+- Pass `base_dir` to override path base.
+- No extension uses probing order: `.schem`, `.schematic`, `.litematic`.
+- If no file matches, extension-less path is sent so Baritone fallback extension still applies.
+
 ## `build`
 
 Build a schematic
@@ -92,6 +132,8 @@ If `task_id` exists, wait for a terminal event:
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
 - Treating dispatch as completion. Dispatch is immediate; wait on `task_id` when needed.
+- For local Python-file-relative schematic paths, use `build_file(...)`.
+- Use `build_file_wait(...)` when you want dispatch + wait in one call.
 
 ### Source provenance
 - Baritone version: `v1.15.0`

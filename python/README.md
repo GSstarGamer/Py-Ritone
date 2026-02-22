@@ -15,7 +15,7 @@ from pyritone import PyritoneClient
 
 with PyritoneClient() as client:
     print(client.ping())
-    dispatch = client.goto(100, 70, 100)
+    dispatch = client.build_file("schematics/base.schem", 100, 70, 100)
     print(dispatch)
 ```
 
@@ -31,7 +31,7 @@ async def main() -> None:
     await client.connect()
     try:
         print(await client.ping())
-        dispatch = await client.goto(100, 70, 100)
+        dispatch = await client.build_file("schematics/base.schem", 100, 70, 100)
         print(dispatch)
     finally:
         await client.close()
@@ -69,6 +69,9 @@ asyncio.run(main())
   - `ping`, `status_get`, `execute`, `cancel`, `next_event`, `wait_for_task`
 - Command wrappers:
   - All top-level Baritone commands exposed as methods.
+- Local schematic helpers:
+  - `build_file(path, *coords, base_dir=None)`
+  - `build_file_wait(path, *coords, base_dir=None)`
 - Settings namespace:
   - Sync: `client.settings.allowPlace = True`
   - Async: `await client.settings.allowPlace.set(True)`
@@ -84,4 +87,3 @@ Override precedence:
 1. Explicit constructor args
 2. Environment variables: `PYRITONE_BRIDGE_INFO`, `PYRITONE_TOKEN`, `PYRITONE_HOST`, `PYRITONE_PORT`
 3. Auto-discovered bridge info file
-

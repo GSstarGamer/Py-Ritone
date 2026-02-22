@@ -128,7 +128,14 @@ class CommandExampleSpec:
 COMMAND_EXAMPLES: dict[str, CommandExampleSpec] = {
     "axis": CommandExampleSpec("dispatch = client.axis()", "dispatch = await client.axis()"),
     "blacklist": CommandExampleSpec("dispatch = client.blacklist()", "dispatch = await client.blacklist()"),
-    "build": CommandExampleSpec("dispatch = client.build(\"starter_house\")", "dispatch = await client.build(\"starter_house\")"),
+    "build": CommandExampleSpec(
+        "dispatch = client.build(\"starter_house\")",
+        "dispatch = await client.build(\"starter_house\")",
+        (
+            "For local Python-file-relative schematic paths, use `build_file(...)`.",
+            "Use `build_file_wait(...)` when you want dispatch + wait in one call.",
+        ),
+    ),
     "cancel": CommandExampleSpec(
         "result = client.cancel()",
         "result = await client.cancel()",
@@ -929,6 +936,52 @@ def generate_domain_commands_markdown(commands: list[ParsedCommand], domain: str
         "- [Alias methods](aliases.md)",
         "",
     ]
+
+    if domain == "build":
+        lines.extend(
+            [
+                "## Pyritone Build Helpers",
+                "",
+                "Extra helpers for local schematic files relative to your Python script.",
+                "",
+                "### Sync example",
+                "```python",
+                "from pyritone import PyritoneClient",
+                "",
+                "with PyritoneClient() as client:",
+                "    dispatch = client.build_file(\"schematics/base\", 100, 70, 100)",
+                "    print(dispatch)",
+                "    terminal = client.build_file_wait(\"schematics/base\", 100, 70, 100)",
+                "    print(terminal)",
+                "```",
+                "",
+                "### Async example",
+                "```python",
+                "import asyncio",
+                "from pyritone import AsyncPyritoneClient",
+                "",
+                "async def main() -> None:",
+                "    client = AsyncPyritoneClient()",
+                "    await client.connect()",
+                "    try:",
+                "        dispatch = await client.build_file(\"schematics/base\", 100, 70, 100)",
+                "        print(dispatch)",
+                "        terminal = await client.build_file_wait(\"schematics/base\", 100, 70, 100)",
+                "        print(terminal)",
+                "    finally:",
+                "        await client.close()",
+                "",
+                "asyncio.run(main())",
+                "```",
+                "",
+                "### Notes",
+                "- Relative paths are resolved from the calling Python file directory by default.",
+                "- Pass `base_dir` to override path base.",
+                "- No extension uses probing order: `.schem`, `.schematic`, `.litematic`.",
+                "- If no file matches, extension-less path is sent so Baritone fallback extension still applies.",
+                "",
+            ]
+        )
 
     for command in domain_commands:
         lines.append(generate_command_card(command, domain_commands))

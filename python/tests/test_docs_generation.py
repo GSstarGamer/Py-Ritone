@@ -36,6 +36,13 @@ def _extract_command_sections(text: str) -> dict[str, str]:
     return sections
 
 
+def _extract_python_example(section_text: str, heading: str) -> str:
+    pattern = re.compile(rf"{re.escape(heading)}\s+```python\n(.*?)\n```", re.DOTALL)
+    match = pattern.search(section_text)
+    assert match is not None, f"Missing python code block after {heading}"
+    return match.group(1)
+
+
 def test_every_canonical_command_appears_in_one_domain_doc():
     expected = {spec.name for spec in COMMAND_SPECS}
     found: dict[str, int] = {}
@@ -54,15 +61,23 @@ def test_every_command_section_has_sync_and_async_examples():
         sections = _extract_command_sections(_read(path))
         assert sections, f"No command sections found in {path}"
         for command_name, section_text in sections.items():
-            assert "### Sync example" in section_text, f"Missing sync example for {command_name}"
-            assert "### Async example" in section_text, f"Missing async example for {command_name}"
+            sync_example = _extract_python_example(section_text, "### Sync example")
+            async_example = _extract_python_example(section_text, "### Async example")
+            method_name = command_name.replace("-", "_")
+
+            assert f"client.{method_name}(" in sync_example, f"Sync example does not call client.{method_name}"
+            assert f"client.{method_name}(" in async_example, f"Async example does not call client.{method_name}"
 
 
 def test_alias_doc_contains_full_alias_mapping():
     text = _read(ALIAS_DOC)
+    canonical_to_domain = {spec.name: spec.domain for spec in COMMAND_SPECS}
+    alias_rows = [line for line in text.splitlines() if line.startswith("| `")]
+    assert len(alias_rows) == len(ALIAS_TO_CANONICAL)
+
     for alias, canonical in sorted(ALIAS_TO_CANONICAL.items()):
         alias_method = "qmark" if alias == "?" else alias.replace("-", "_")
         canonical_method = canonical.replace("-", "_")
-        line = f"| `{alias}` | `{canonical}` | `{alias_method}` | `{canonical_method}` |"
+        domain = canonical_to_domain[canonical]
+        line = f"| `{alias}` | `{canonical}` | `{alias_method}` | `{canonical_method}` | `{domain}` |"
         assert line in text
-

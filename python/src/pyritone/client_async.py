@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from pathlib import Path
 from typing import Any
 
 from .commands.async_build import AsyncBuildCommands
@@ -10,9 +11,11 @@ from .commands.async_info import AsyncInfoCommands
 from .commands.async_navigation import AsyncNavigationCommands
 from .commands.async_waypoints import AsyncWaypointsCommands
 from .commands.async_world import AsyncWorldCommands
+from .commands._types import CommandDispatchResult
 from .discovery import resolve_bridge_info
 from .models import BridgeError, BridgeInfo
 from .protocol import decode_line, encode_line, new_request
+from .schematic_paths import normalize_build_coords, normalize_schematic_path
 from .settings import AsyncSettingsNamespace
 
 
@@ -138,6 +141,42 @@ class AsyncPyritoneClient(
 
             if isinstance(event_name, str) and event_name in self.TERMINAL_TASK_EVENTS:
                 return event
+
+    async def build_file(
+        self,
+        path: str | Path,
+        *coords: int,
+        base_dir: str | Path | None = None,
+    ) -> CommandDispatchResult:
+        """Dispatch Baritone `build` using a local schematic path.
+
+        Relative paths resolve from the calling Python file directory by default.
+        Use `base_dir` to override that base path.
+
+        Coordinate args must be either:
+        - none (build at player position), or
+        - exactly three ints `(x, y, z)`.
+        """
+        normalized_path = normalize_schematic_path(path, base_dir=base_dir)
+        normalized_coords = normalize_build_coords(coords)
+        return await self.build(normalized_path, *normalized_coords)
+
+    async def build_file_wait(
+        self,
+        path: str | Path,
+        *coords: int,
+        base_dir: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Dispatch `build_file` and wait for terminal task event.
+
+        Raises `BridgeError(code=\"BAD_RESPONSE\", ...)` when dispatch response
+        does not include a `task_id`.
+        """
+        dispatch = await self.build_file(path, *coords, base_dir=base_dir)
+        task_id = dispatch.get("task_id")
+        if not task_id:
+            raise BridgeError("BAD_RESPONSE", "No task_id returned for command: build", dispatch["raw"])
+        return await self.wait_for_task(task_id)
 
     async def _request(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         self._ensure_connected()

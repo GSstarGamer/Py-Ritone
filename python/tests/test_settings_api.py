@@ -30,7 +30,7 @@ def test_sync_settings_attribute_assignment_and_helpers():
 
     client.settings.allowSprint = True
     assert client.calls[-1] == ("allowSprint", True)
-    assert client.settings.last_dispatch is not None
+    assert client.settings.last_dispatch == {"raw": {}, "command_text": "set allowSprint true"}
 
     get_dispatch = client.settings.allowSprint.get()
     toggle_dispatch = client.settings.allowSprint.toggle()
@@ -39,6 +39,13 @@ def test_sync_settings_attribute_assignment_and_helpers():
     assert get_dispatch["command_text"] == "set allowSprint"
     assert toggle_dispatch["command_text"] == "set toggle allowSprint"
     assert reset_dispatch["command_text"] == "set reset allowSprint"
+    assert client.settings.last_dispatch == reset_dispatch
+    assert client.calls == [
+        ("allowSprint", True),
+        ("allowSprint",),
+        ("toggle", "allowSprint"),
+        ("reset", "allowSprint"),
+    ]
 
 
 @pytest.mark.asyncio
@@ -54,3 +61,28 @@ async def test_async_settings_handle_methods():
     assert get_dispatch["command_text"] == "set allowSprint"
     assert toggle_dispatch["command_text"] == "set toggle allowSprint"
     assert reset_dispatch["command_text"] == "set reset allowSprint"
+    assert client.calls == [
+        ("allowSprint", True),
+        ("allowSprint",),
+        ("toggle", "allowSprint"),
+        ("reset", "allowSprint"),
+    ]
+
+
+def test_sync_settings_private_attribute_behavior():
+    client = DummySyncClient()
+
+    with pytest.raises(AttributeError):
+        _ = client.settings._missing_private
+
+    client.settings._local_only = "debug"
+    assert client.calls == []
+    assert client.settings._local_only == "debug"
+
+
+@pytest.mark.asyncio
+async def test_async_settings_private_attribute_access_raises():
+    client = DummyAsyncClient()
+
+    with pytest.raises(AttributeError):
+        _ = client.settings._missing_private

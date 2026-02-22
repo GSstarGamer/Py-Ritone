@@ -15,8 +15,12 @@ from pyritone import PyritoneClient
 with PyritoneClient() as client:
     print(client.ping())
     print(client.status_get())
-    dispatch = client.goto(100, 70, 100)
+    dispatch = client.build_file("schematics/base.schem", 100, 70, 100)
     print(dispatch)
+
+    task_id = dispatch.get("task_id")
+    if task_id:
+        print(client.wait_for_task(task_id))
 ```
 
 ### Async example
@@ -32,8 +36,12 @@ async def main() -> None:
     try:
         print(await client.ping())
         print(await client.status_get())
-        dispatch = await client.goto(100, 70, 100)
+        dispatch = await client.build_file("schematics/base.schem", 100, 70, 100)
         print(dispatch)
+
+        task_id = dispatch.get("task_id")
+        if task_id:
+            print(await client.wait_for_task(task_id))
     finally:
         await client.close()
 
@@ -45,7 +53,7 @@ asyncio.run(main())
 
 ```text
 ping/status_get return dict[str, Any] payloads.
-goto and other command wrappers return CommandDispatchResult:
+build_file and other command wrappers return CommandDispatchResult:
 - command_text
 - raw
 - task_id (optional)
@@ -55,7 +63,8 @@ goto and other command wrappers return CommandDispatchResult:
 ### Common mistakes
 
 - Running Python before Minecraft has started with `pyritone_bridge`.
-- Calling command wrappers before joining a world (may return `NOT_IN_WORLD`).
+- Calling build commands before joining a world (may return `NOT_IN_WORLD`).
+- Using relative paths that are not relative to your script file (set `base_dir` to override).
 - Treating dispatch as completion; use `wait_for_task` when `task_id` exists.
 
 ### Related methods
@@ -63,4 +72,3 @@ goto and other command wrappers return CommandDispatchResult:
 - `connection-and-discovery.md`
 - `tasks-events-and-waiting.md`
 - `commands/navigation.md`
-
