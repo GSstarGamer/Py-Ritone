@@ -1,0 +1,159 @@
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.zip.ZipFile
+
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+}
+
+loom {
+    mods {
+        "pyritone_bridge" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+def baritoneDevJar = layout.projectDirectory.file(".gradle/dev-mods/baritone-api-fabric-${project.baritone_version}.jar")
+def baritoneDevJarFile = baritoneDevJar.asFile
+def netherPathfinderDevJar = layout.projectDirectory.file(".gradle/dev-mods/nether-pathfinder-1.4.1.jar")
+def netherPathfinderDevJarFile = netherPathfinderDevJar.asFile
+
+def baritoneDownloadUrl = "https://github.com/cabaletta/baritone/releases/download/v${project.baritone_version}/baritone-api-fabric-${project.baritone_version}.jar"
+def netherPathfinderNestedPath = "META-INF/jars/nether-pathfinder-1.4.1.jar"
+
+def ensureBaritoneDevJar = {
+    if (baritoneDevJarFile.exists() && baritoneDevJarFile.length() > 0L) {
+        return
+    }
+
+    baritoneDevJarFile.parentFile.mkdirs()
+    logger.lifecycle("Downloading Baritone dev jar from ${baritoneDownloadUrl}")
+
+    new URL(baritoneDownloadUrl).withInputStream { input ->
+        Files.copy(input, baritoneDevJarFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    logger.lifecycle("Saved Baritone dev jar to ${baritoneDevJarFile}")
+}
+
+def ensureNetherPathfinderDevJar = {
+    ensureBaritoneDevJar()
+
+    if (netherPathfinderDevJarFile.exists() && netherPathfinderDevJarFile.length() > 0L) {
+        return
+    }
+
+    netherPathfinderDevJarFile.parentFile.mkdirs()
+
+    ZipFile zipFile = new ZipFile(baritoneDevJarFile)
+    try {
+        def nestedEntry = zipFile.getEntry(netherPathfinderNestedPath)
+        if (nestedEntry == null) {
+            throw new GradleException("Could not find nested dependency ${netherPathfinderNestedPath} in ${baritoneDevJarFile}")
+        }
+
+        zipFile.getInputStream(nestedEntry).withCloseable { input ->
+            Files.copy(input, netherPathfinderDevJarFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+    } finally {
+        zipFile.close()
+    }
+
+    logger.lifecycle("Extracted Nether Pathfinder dependency to ${netherPathfinderDevJarFile}")
+}
+
+// Loom inspects runtime mods during configuration, so these files must exist before task execution.
+ensureBaritoneDevJar()
+ensureNetherPathfinderDevJar()
+
+def downloadDevBaritoneModTask = tasks.register("downloadDevBaritoneMod") {
+    group = "fabric"
+    description = "Downloads Baritone and extracts runtime dependencies for development runClient sessions"
+    outputs.files(baritoneDevJarFile, netherPathfinderDevJarFile)
+
+    doLast {
+        ensureBaritoneDevJar()
+        ensureNetherPathfinderDevJar()
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Baritone runtime mod for dev client.
+    modLocalRuntime files(baritoneDevJarFile)
+    // Nested runtime library required by Baritone at startup.
+    runtimeOnly files(netherPathfinderDevJarFile)
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.10.2"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+// Loom tasks read remap classpath and local runtime mods before run tasks; ensure order is explicit.
+tasks.matching { it.name in ["generateRemapClasspath", "configureLaunch", "configureClientLaunch", "runClient", "runServer"] }.configureEach {
+    dependsOn(downloadDevBaritoneModTask)
+}
+
+tasks.register("devClient") {
+    group = "fabric"
+    description = "Ensures Baritone is present and starts the Fabric dev client"
+    dependsOn(tasks.named("runClient"))
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    inputs.property "archivesName", project.base.archivesName
+
+    from("../LICENSE") {
+        rename { "${it}_${inputs.properties.archivesName}" }
+    }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+
+    repositories {
+    }
+}

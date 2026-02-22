@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "pyritone_bridge",
+  "version": "${version}",
+  "name": "Py-Ritone Bridge",
+  "description": "Zero-setup localhost bridge between Baritone and Python.",
+  "authors": [
+    "Py-Ritone"
+  ],
+  "contact": {
+    "sources": "https://github.com/pyritone/Py-Ritone"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.pyritone.bridge.PyritoneBridgeClientMod"
+    ]
+  },
+  "mixins": [
+    "pyritone_bridge.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~1.21.8",
+    "java": ">=21",
+    "fabric-api": "*",
+    "baritone": ">=1.15.0"
+  }
+}

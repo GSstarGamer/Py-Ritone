@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  mod-build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Build Fabric mod
+        working-directory: mod
+        run: .\gradlew.bat build --no-daemon
+      - name: Upload mod artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyritone-mod-jar
+          path: mod/build/libs/*.jar
+
+  python-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        working-directory: python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest build twine
+      - name: Run tests
+        working-directory: python
+        run: python -m pytest
+      - name: Build package
+        working-directory: python
+        run: python -m build
+      - name: Twine check
+        working-directory: python
+        run: python -m twine check dist/*
+      - name: Upload python artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyritone-python-dist
+          path: python/dist/*
+
+  protocol-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate protocol schema JSON
+        run: python -m json.tool protocol/bridge-protocol-v1.schema.json > /dev/null
+      - name: Ensure protocol doc exists
+        run: test -f protocol/bridge-protocol-v1.md

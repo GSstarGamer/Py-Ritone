@@ -1,0 +1,29 @@
+# Root
+.git/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+python/dist/
+python/build/
+
+# Gradle/Fabric
+mod/.gradle/
+mod/build/
+mod/run/
+
+# Runtime logs
+mod/logs/
