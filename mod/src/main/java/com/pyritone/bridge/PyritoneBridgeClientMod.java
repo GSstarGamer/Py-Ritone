@@ -19,6 +19,10 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,7 +187,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
             return switch (method) {
                 case "auth.login" -> handleAuthLogin(id, params, session);
-                case "ping" -> handlePing(id);
+                case "ping" -> handlePing(id, session);
                 case "status.get" -> handleStatus(id, session);
                 case "baritone.execute" -> handleBaritoneExecute(id, params);
                 case "task.cancel" -> handleTaskCancel(id);
@@ -212,10 +216,25 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         result.addProperty("server_version", serverVersion);
         result.addProperty("session_id", session.sessionId());
 
+        int bridgePort = server != null ? server.getBoundPort() : BridgeConfig.DEFAULT_PORT;
+        emitPyritoneNotice(
+            "Python client connected on "
+                + BridgeConfig.DEFAULT_HOST
+                + ":"
+                + bridgePort
+                + " (session "
+                + shortSessionId(session.sessionId())
+                + ")"
+        );
+
         return ProtocolCodec.successResponse(id, result);
     }
 
-    private JsonObject handlePing(String id) {
+    private JsonObject handlePing(String id, SocketBridgeServer.ClientSession session) {
+        if (session.isAuthenticated()) {
+            emitPyritoneNotice("Pong");
+        }
+
         JsonObject result = new JsonObject();
         result.addProperty("pong", true);
         result.addProperty("ts", Instant.now().toString());
@@ -241,10 +260,15 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         if (command == null || command.isBlank()) {
             return ProtocolCodec.errorResponse(id, "BAD_REQUEST", "Missing command");
         }
+
+        emitPyritoneNotice("Python execute: " + compactCommand(command));
+
         if (!baritoneGateway.isAvailable()) {
+            emitPyritoneNotice("Python execute blocked: Baritone unavailable");
             return ProtocolCodec.errorResponse(id, "BARITONE_UNAVAILABLE", "Baritone is not available");
         }
         if (!baritoneGateway.isInWorld()) {
+            emitPyritoneNotice("Python execute blocked: join a world first");
             return ProtocolCodec.errorResponse(id, "NOT_IN_WORLD", "Join a world before executing commands");
         }
 
@@ -257,6 +281,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
         BaritoneGateway.Outcome outcome = baritoneGateway.executeRaw(command);
         if (!outcome.ok()) {
+            emitPyritoneNotice("Python execute failed: " + compactCommand(outcome.message()));
             Optional<TaskSnapshot> failed = taskRegistry.transitionActive(TaskState.FAILED, outcome.message());
             failed.ifPresent(snapshot -> emitTaskEvent("task.failed", snapshot, "execute_failed"));
             return ProtocolCodec.errorResponse(id, "EXECUTION_FAILED", outcome.message());
@@ -274,22 +299,27 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private JsonObject handleTaskCancel(String id) {
         Optional<TaskSnapshot> active = taskRegistry.active();
         if (active.isEmpty()) {
+            emitPyritoneNotice("Python cancel requested, but no active task");
             JsonObject result = new JsonObject();
             result.addProperty("canceled", false);
             return ProtocolCodec.successResponse(id, result);
         }
 
         if (!baritoneGateway.isAvailable()) {
+            emitPyritoneNotice("Python cancel blocked: Baritone unavailable");
             return ProtocolCodec.errorResponse(id, "BARITONE_UNAVAILABLE", "Baritone is not available");
         }
 
+        emitPyritoneNotice("Python cancel requested");
         BaritoneGateway.Outcome outcome = baritoneGateway.cancelCurrent();
         if (!outcome.ok()) {
+            emitPyritoneNotice("Python cancel failed: " + compactCommand(outcome.message()));
             return ProtocolCodec.errorResponse(id, "EXECUTION_FAILED", outcome.message());
         }
 
         Optional<TaskSnapshot> canceled = taskRegistry.transitionActive(TaskState.CANCELED, outcome.message());
         canceled.ifPresent(snapshot -> emitTaskEvent("task.canceled", snapshot, "cancel_requested"));
+        emitPyritoneNotice("Python cancel accepted");
 
         JsonObject result = new JsonObject();
         result.addProperty("canceled", true);
@@ -356,6 +386,53 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         byte[] left = expected.getBytes(StandardCharsets.UTF_8);
         byte[] right = actual.getBytes(StandardCharsets.UTF_8);
         return MessageDigest.isEqual(left, right);
+    }
+
+    private static String shortSessionId(String sessionId) {
+        if (sessionId == null || sessionId.length() <= 8) {
+            return sessionId;
+        }
+        return sessionId.substring(0, 8);
+    }
+
+    private static String compactCommand(String value) {
+        if (value == null) {
+            return "";
+        }
+        String collapsed = value.replaceAll("\\s+", " ").trim();
+        if (collapsed.length() <= 72) {
+            return collapsed;
+        }
+        return collapsed.substring(0, 69) + "...";
+    }
+
+    private void emitPyritoneNotice(String message) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+
+        client.execute(() -> {
+            if (client.player == null) {
+                return;
+            }
+            client.player.sendMessage(pyritoneMessage(message), false);
+        });
+    }
+
+    private static Text pyritoneMessage(String message) {
+        MutableText text = pyritonePrefix();
+        text.append(Text.literal(" "));
+        text.append(Text.literal(message).formatted(Formatting.GRAY));
+        return text;
+    }
+
+    private static MutableText pyritonePrefix() {
+        MutableText prefix = Text.literal("");
+        prefix.append(Text.literal("[").formatted(Formatting.DARK_GREEN));
+        prefix.append(Text.literal("Py-Ritone").formatted(Formatting.GREEN));
+        prefix.append(Text.literal("]").formatted(Formatting.DARK_GREEN));
+        return prefix;
     }
 }
 

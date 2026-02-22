@@ -56,7 +56,8 @@ public final class BaritoneGateway {
     }
 
     public void tickApplyPyritoneChatBranding() {
-        // Prefix branding is handled by a Baritone Helper mixin.
+        // Intentionally no-op: native Baritone prefix should remain unchanged.
+        // Py-Ritone branding is applied only to bridge-originated notices.
     }
 
     private Outcome executeRawOnClientThread(String command) {

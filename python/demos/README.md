@@ -31,11 +31,11 @@ Each demo uses default discovery (`bridge-info.json` / `PYRITONE_*`) and fails g
 | `01_connect_discovery.py` | Zero-setup discovery + connection/auth + baseline ping/status | `python demos/01_connect_discovery.py` | `01-connect-discovery.mp4` |
 | `02_basic_commands.py` | High-level wrappers plus raw `execute(...)` fallback | `python demos/02_basic_commands.py` | `02-basic-commands.mp4` |
 | `03_goto_completion.py` | `goto(...)` dispatch + `wait_for_task(...)` terminal handling | `python demos/03_goto_completion.py 100 70 100` | `03-goto-completion.mp4` |
-| `04_live_event_feed.py` | Live event polling with `next_event(...)` and optional full JSON | `python demos/04_live_event_feed.py --max-events 20 --full-json` | `04-live-event-feed.mp4` |
+| `04_live_event_feed.py` | Auto-dispatches a high-Y `goto`, then prints concise live task/path event lines | `python demos/04_live_event_feed.py --x 0 --y 1000 --z 0 --max-events 30` | `04-live-event-feed.mp4` |
 | `05_cancel_task.py` | Start task, cancel by task id, observe terminal event | `python demos/05_cancel_task.py --delay 1.5` | `05-cancel-task.mp4` |
 | `06_settings_mode_switch.py` | Sync settings API: property assignment + get/set/toggle/reset + presets | `python demos/06_settings_mode_switch.py --mode builder` | `06-settings-mode-switch.mp4` |
 | `07_mini_console.py` | Interactive mini console with dynamic wrapper dispatch | `python demos/07_mini_console.py` | `07-mini-console.mp4` |
-| `08_async_workflow.py` | End-to-end async client usage + async settings + task wait | `python demos/08_async_workflow.py 100 70 100` | `08-async-workflow.mp4` |
+| `08_async_workflow.py` | Async-only concurrency: stream events + heartbeat pings + wait/cancel in parallel | `python demos/08_async_workflow.py 0 1000 0 --cancel-after 6 --heartbeat-interval 1.5` | `08-async-workflow.mp4` |
 | `09_build_file_local_path.py` | `build_file(...)` and local path resolution relative to Python code | `python demos/09_build_file_local_path.py "schematics/base" --coords 100 70 100 --wait` | `09-build-file-local-path.mp4` |
 | `10_cli_entrypoints.py` | CLI usage via subprocess (`ping`, `status`, `exec`, `cancel`) | `python demos/10_cli_entrypoints.py` | `10-cli-entrypoints.mp4` |
 
