@@ -49,6 +49,12 @@
 - `baritone.path_event`
 - `chat.match` (optional watch pattern signal)
 
+### Task terminal timing
+
+- `task.completed`, `task.failed`, and `task.canceled` are emitted only after stable terminal resolution.
+- Raw `baritone.path_event` hints (for example `AT_GOAL`, `CANCELED`, `CALC_FAILED`) do not immediately terminate the task.
+- The bridge waits for a short quiescence window so internal recalculation churn does not end `wait_for_task(...)` early.
+
 ## Error Codes
 
 - `UNAUTHORIZED`

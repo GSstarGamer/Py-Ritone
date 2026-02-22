@@ -1,8 +1,6 @@
 package com.pyritone.bridge;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.pyritone.bridge.command.PyritoneCommand;
 import com.pyritone.bridge.config.BridgeConfig;
@@ -14,6 +12,7 @@ import com.pyritone.bridge.runtime.BaritoneGateway;
 import com.pyritone.bridge.runtime.TaskRegistry;
 import com.pyritone.bridge.runtime.TaskSnapshot;
 import com.pyritone.bridge.runtime.TaskState;
+import com.pyritone.bridge.runtime.TaskLifecycleResolver;
 import com.pyritone.bridge.runtime.WatchPatternRegistry;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -43,6 +42,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private String serverVersion;
 
     private final TaskRegistry taskRegistry = new TaskRegistry();
+    private final TaskLifecycleResolver taskLifecycleResolver = new TaskLifecycleResolver();
     private final WatchPatternRegistry watchPatternRegistry = new WatchPatternRegistry();
 
     private BaritoneGateway baritoneGateway;
@@ -65,6 +65,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             baritoneGateway.tickRegisterPathListener();
             baritoneGateway.tickApplyPyritoneChatBranding();
+            tickTaskLifecycle();
         });
         ClientSendMessageEvents.ALLOW_CHAT.register(this::handleOutgoingChat);
         ClientSendMessageEvents.ALLOW_COMMAND.register(this::handleOutgoingCommand);
@@ -277,13 +278,17 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             emitTaskEvent("task.canceled", startResult.replacedTask(), "replaced");
         }
 
+        taskLifecycleResolver.start(startResult.startedTask().taskId());
         emitTaskEvent("task.started", startResult.startedTask(), "dispatched");
 
         BaritoneGateway.Outcome outcome = baritoneGateway.executeRaw(command);
         if (!outcome.ok()) {
             emitPyritoneNotice("Python execute failed: " + compactCommand(outcome.message()));
             Optional<TaskSnapshot> failed = taskRegistry.transitionActive(TaskState.FAILED, outcome.message());
-            failed.ifPresent(snapshot -> emitTaskEvent("task.failed", snapshot, "execute_failed"));
+            failed.ifPresent(snapshot -> {
+                taskLifecycleResolver.clearForTask(snapshot.taskId());
+                emitTaskEvent("task.failed", snapshot, "execute_failed");
+            });
             return ProtocolCodec.errorResponse(id, "EXECUTION_FAILED", outcome.message());
         }
 
@@ -317,13 +322,14 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             return ProtocolCodec.errorResponse(id, "EXECUTION_FAILED", outcome.message());
         }
 
-        Optional<TaskSnapshot> canceled = taskRegistry.transitionActive(TaskState.CANCELED, outcome.message());
-        canceled.ifPresent(snapshot -> emitTaskEvent("task.canceled", snapshot, "cancel_requested"));
+        taskLifecycleResolver.markApiCancelRequested(active.orElseThrow().taskId());
+        Optional<TaskSnapshot> updated = taskRegistry.updateActiveDetail("Cancel requested by API");
+        updated.ifPresent(snapshot -> emitTaskEvent("task.progress", snapshot, "cancel_requested"));
         emitPyritoneNotice("Python cancel accepted");
 
         JsonObject result = new JsonObject();
         result.addProperty("canceled", true);
-        result.add("task", canceled.<JsonElement>map(TaskSnapshot::toJson).orElse(JsonNull.INSTANCE));
+        result.add("task", updated.<JsonElement>map(TaskSnapshot::toJson).orElse(active.orElseThrow().toJson()));
         return ProtocolCodec.successResponse(id, result);
     }
 
@@ -340,16 +346,41 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             return;
         }
 
-        switch (pathEventName) {
-            case "AT_GOAL" -> taskRegistry.transitionActive(TaskState.COMPLETED, "Reached goal")
-                .ifPresent(snapshot -> emitTaskEvent("task.completed", snapshot, pathEventName));
-            case "CANCELED" -> taskRegistry.transitionActive(TaskState.CANCELED, "Baritone canceled")
-                .ifPresent(snapshot -> emitTaskEvent("task.canceled", snapshot, pathEventName));
-            case "CALC_FAILED", "NEXT_CALC_FAILED" -> taskRegistry.transitionActive(TaskState.FAILED, pathEventName)
-                .ifPresent(snapshot -> emitTaskEvent("task.failed", snapshot, pathEventName));
-            default -> taskRegistry.updateActiveDetail("Path event: " + pathEventName)
-                .ifPresent(snapshot -> emitTaskEvent("task.progress", snapshot, pathEventName));
+        TaskSnapshot current = active.orElseThrow();
+        taskLifecycleResolver.recordPathEvent(current.taskId(), pathEventName);
+        taskRegistry.updateActiveDetail(pathEventDetail(pathEventName))
+            .ifPresent(snapshot -> emitTaskEvent("task.progress", snapshot, pathEventName));
+    }
+
+    private void tickTaskLifecycle() {
+        Optional<TaskSnapshot> active = taskRegistry.active();
+        if (active.isEmpty()) {
+            taskLifecycleResolver.clear();
+            return;
         }
+
+        TaskSnapshot current = active.orElseThrow();
+        Optional<TaskLifecycleResolver.TerminalDecision> terminal = taskLifecycleResolver.evaluate(
+            current.taskId(),
+            baritoneGateway.activitySnapshot()
+        );
+
+        if (terminal.isEmpty()) {
+            return;
+        }
+
+        TaskLifecycleResolver.TerminalDecision decision = terminal.orElseThrow();
+        taskRegistry.transitionActive(decision.state(), decision.detail())
+            .ifPresent(snapshot -> emitTaskEvent(decision.eventName(), snapshot, decision.stage()));
+    }
+
+    private static String pathEventDetail(String pathEventName) {
+        return switch (pathEventName) {
+            case "AT_GOAL" -> "Reached goal (awaiting stable idle)";
+            case "CANCELED" -> "Baritone canceled (awaiting stable idle)";
+            case "CALC_FAILED", "NEXT_CALC_FAILED" -> "Path calculation failed (awaiting stable idle)";
+            default -> "Path event: " + pathEventName;
+        };
     }
 
     private void emitTaskEvent(String eventName, TaskSnapshot taskSnapshot, String stage) {

@@ -49,6 +49,12 @@ Task terminal event envelope:
 - ts: ISO-8601 timestamp
 ```
 
+### Terminal timing semantics
+
+- `wait_for_task(task_id)` now waits for stable terminal state, not the first raw path hint.
+- Internal Baritone recalculations can emit temporary `baritone.path_event` values like `CANCELED` or `CALC_FAILED`; those are treated as hints until the task is truly idle.
+- This prevents early exits during long `goto`, `build`, and recalculation-heavy flows.
+
 ### Common mistakes
 
 - Ignoring `task.failed` and assuming all terminal events are success.
@@ -60,4 +66,3 @@ Task terminal event envelope:
 - `sync-client.md`
 - `async-client.md`
 - `commands/navigation.md`
-

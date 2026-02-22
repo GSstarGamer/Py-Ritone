@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -58,6 +59,10 @@ public final class BaritoneGateway {
     public void tickApplyPyritoneChatBranding() {
         // Intentionally no-op: native Baritone prefix should remain unchanged.
         // Py-Ritone branding is applied only to bridge-originated notices.
+    }
+
+    public ActivitySnapshot activitySnapshot() {
+        return onClientThread(this::activitySnapshotOnClientThread, ActivitySnapshot.idle());
     }
 
     private Outcome executeRawOnClientThread(String command) {
@@ -131,6 +136,102 @@ public final class BaritoneGateway {
         }
     }
 
+    private ActivitySnapshot activitySnapshotOnClientThread() {
+        if (!isClientReady()) {
+            return ActivitySnapshot.idle();
+        }
+
+        try {
+            Object baritone = getPrimaryBaritone();
+            Object pathingBehavior = tryInvokeNoArgs(baritone, "getPathingBehavior");
+
+            boolean isPathing = tryInvokeBooleanNoArgs(pathingBehavior, "isPathing");
+            boolean hasPath = detectHasPath(pathingBehavior);
+            boolean calcInProgress = detectCalcInProgress(pathingBehavior);
+            boolean processInControlActive = detectProcessInControl(baritone);
+
+            return new ActivitySnapshot(isPathing, hasPath, calcInProgress, processInControlActive);
+        } catch (ReflectiveOperationException exception) {
+            logger.debug("Unable to gather Baritone runtime snapshot", exception);
+            return ActivitySnapshot.idle();
+        }
+    }
+
+    private static boolean detectHasPath(Object pathingBehavior) {
+        if (pathingBehavior == null) {
+            return false;
+        }
+        if (tryInvokeBooleanNoArgs(pathingBehavior, "hasPath")) {
+            return true;
+        }
+        if (tryInvokeNoArgs(pathingBehavior, "getCurrent") != null) {
+            return true;
+        }
+        return tryInvokeNoArgs(pathingBehavior, "getPath") != null;
+    }
+
+    private static boolean detectCalcInProgress(Object pathingBehavior) {
+        if (pathingBehavior == null) {
+            return false;
+        }
+        if (tryInvokeBooleanNoArgs(pathingBehavior, "isPathCalcInProgress")) {
+            return true;
+        }
+        if (tryInvokeBooleanNoArgs(pathingBehavior, "isCalcInProgress")) {
+            return true;
+        }
+        if (tryInvokeBooleanNoArgs(pathingBehavior, "isCalculating")) {
+            return true;
+        }
+        if (tryInvokeBooleanNoArgs(pathingBehavior, "isPlanning")) {
+            return true;
+        }
+        if (tryInvokeNoArgs(pathingBehavior, "getInProgress") != null) {
+            return true;
+        }
+        return tryInvokeNoArgs(pathingBehavior, "getCurrentCalculation") != null;
+    }
+
+    private static boolean detectProcessInControl(Object baritone) {
+        if (baritone == null) {
+            return false;
+        }
+
+        Object pathingControlManager = tryInvokeNoArgs(baritone, "getPathingControlManager");
+        if (pathingControlManager == null) {
+            return false;
+        }
+
+        Object inControl = tryInvokeNoArgs(pathingControlManager, "mostRecentInControl");
+        if (inControl == null) {
+            inControl = tryInvokeNoArgs(pathingControlManager, "inControlThisTick");
+        }
+        if (inControl == null) {
+            inControl = tryInvokeNoArgs(pathingControlManager, "getInControl");
+        }
+
+        if (inControl instanceof Optional<?> optional) {
+            inControl = optional.orElse(null);
+        }
+        if (inControl == null) {
+            return false;
+        }
+        if (inControl instanceof Boolean value) {
+            return value;
+        }
+        if (tryInvokeBooleanNoArgs(inControl, "isActive")) {
+            return true;
+        }
+        if (tryInvokeBooleanNoArgs(inControl, "isPathing")) {
+            return true;
+        }
+        Object pausedValue = tryInvokeNoArgs(inControl, "isPaused");
+        if (pausedValue instanceof Boolean paused) {
+            return !paused;
+        }
+        return false;
+    }
+
     private Object handleEventListenerCall(Object proxy, Method method, Object[] args) {
         String methodName = method.getName();
         if ("onPathEvent".equals(methodName) && args != null && args.length == 1 && args[0] != null) {
@@ -195,6 +296,22 @@ public final class BaritoneGateway {
         return target.getClass().getMethod(methodName).invoke(target);
     }
 
+    private static Object tryInvokeNoArgs(Object target, String methodName) {
+        if (target == null) {
+            return null;
+        }
+        try {
+            return invokeNoArgs(target, methodName);
+        } catch (ReflectiveOperationException exception) {
+            return null;
+        }
+    }
+
+    private static boolean tryInvokeBooleanNoArgs(Object target, String methodName) {
+        Object value = tryInvokeNoArgs(target, methodName);
+        return value instanceof Boolean bool && bool;
+    }
+
     private static Object invoke(Object target, String methodName, Class<?>[] parameterTypes, Object[] values) throws ReflectiveOperationException {
         return target.getClass().getMethod(methodName, parameterTypes).invoke(target, values);
     }
@@ -235,5 +352,20 @@ public final class BaritoneGateway {
     }
 
     public record Outcome(boolean ok, String message) {
+    }
+
+    public record ActivitySnapshot(
+        boolean isPathing,
+        boolean hasPath,
+        boolean calcInProgress,
+        boolean processInControlActive
+    ) {
+        public boolean isBusy() {
+            return isPathing || hasPath || calcInProgress || processInControlActive;
+        }
+
+        public static ActivitySnapshot idle() {
+            return new ActivitySnapshot(false, false, false, false);
+        }
     }
 }
