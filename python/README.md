@@ -8,118 +8,80 @@
 pip install pyritone
 ```
 
-## Beginner usage
+## Fastest Working Sync Example
 
 ```python
 from pyritone import PyritoneClient
 
 with PyritoneClient() as client:
+    print(client.ping())
     dispatch = client.goto(100, 70, 100)
-    task_id = dispatch.get("task_id")
-    if task_id:
-        terminal = client.wait_for_task(task_id)
-        print(terminal["event"])
+    print(dispatch)
 ```
 
-## Command API
-
-All top-level Baritone v1.15.0 commands are exposed as Python methods on:
-
-- `PyritoneClient` (sync)
-- `AsyncPyritoneClient` (async)
-
-Each command returns immediate dispatch info:
-
-- `command_text`
-- `raw` bridge response
-- optional `task_id`
-- optional `accepted`
-
-Command aliases are exposed too (`qmark`, `stop`, `wp`, etc). Full generated reference:
-
-- `python/docs/baritone-commands.md`
-
-## Settings API
-
-You can control Baritone settings through a settings namespace.
+## Fastest Working Async Example
 
 ```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    client.settings.allowSprint = True
-    client.settings.allowBreak = False
-
-    print(client.settings.allowSprint.get())
-    print(client.settings.allowSprint.toggle())
-    print(client.settings.allowSprint.reset())
-```
-
-Async style:
-
-```python
+import asyncio
 from pyritone import AsyncPyritoneClient
 
-client = AsyncPyritoneClient()
-await client.connect()
-try:
-    await client.settings.allowSprint.set(True)
-    await client.settings.allowSprint.get()
-finally:
-    await client.close()
+
+async def main() -> None:
+    client = AsyncPyritoneClient()
+    await client.connect()
+    try:
+        print(await client.ping())
+        dispatch = await client.goto(100, 70, 100)
+        print(dispatch)
+    finally:
+        await client.close()
+
+
+asyncio.run(main())
 ```
 
-## Low-level API still available
+## Docs
 
-- `execute("...")`
-- `cancel()`
-- `ping()`
-- `status_get()`
-- `next_event()`
-- `wait_for_task(task_id)`
+- Full docs index: `python/docs/index.md`
+- Quickstart: `python/docs/quickstart.md`
+- Sync client guide: `python/docs/sync-client.md`
+- Async client guide: `python/docs/async-client.md`
+- Settings API: `python/docs/settings-api.md`
+- Tasks/events/waiting: `python/docs/tasks-events-and-waiting.md`
+- Errors/troubleshooting: `python/docs/errors-and-troubleshooting.md`
+- CLI usage: `python/docs/cli.md`
+- Command docs:
+  - `python/docs/commands/navigation.md`
+  - `python/docs/commands/world.md`
+  - `python/docs/commands/build.md`
+  - `python/docs/commands/control.md`
+  - `python/docs/commands/info.md`
+  - `python/docs/commands/waypoints.md`
+  - `python/docs/commands/aliases.md`
+- Raw Baritone appendix: `python/docs/baritone-commands.md`
 
-## Zero-setup discovery
+## Public API Map
 
-By default, `pyritone` discovers bridge details from:
+- Clients:
+  - `PyritoneClient`
+  - `AsyncPyritoneClient`
+- Low-level methods:
+  - `ping`, `status_get`, `execute`, `cancel`, `next_event`, `wait_for_task`
+- Command wrappers:
+  - All top-level Baritone commands exposed as methods.
+- Settings namespace:
+  - Sync: `client.settings.allowPlace = True`
+  - Async: `await client.settings.allowPlace.set(True)`
+
+## Auto-Discovery (Zero-Setup)
+
+By default, `pyritone` discovers bridge metadata from:
 
 - `<minecraft>/config/pyritone_bridge/bridge-info.json`
 
-Override priority:
+Override precedence:
 
 1. Explicit constructor args
-2. Environment variables (`PYRITONE_BRIDGE_INFO`, `PYRITONE_TOKEN`, `PYRITONE_HOST`, `PYRITONE_PORT`)
-3. Default bridge info file
+2. Environment variables: `PYRITONE_BRIDGE_INFO`, `PYRITONE_TOKEN`, `PYRITONE_HOST`, `PYRITONE_PORT`
+3. Auto-discovered bridge info file
 
-## CLI
-
-```bash
-pyritone ping
-pyritone status
-pyritone exec "goto 100 70 100"
-pyritone cancel
-pyritone events
-```
-
-## Regenerate command wrappers/docs
-
-```bash
-python tools/generate_baritone_commands.py
-```
-
-## End-to-End Dev Test
-
-1. Start Minecraft dev client from the mod folder:
-
-```powershell
-cd ..\mod
-.\gradlew.bat devClient
-```
-
-2. Join a world.
-3. Run one of the example scripts:
-
-```powershell
-cd ..\python
-python example_sync.py
-python example_async.py
-```
