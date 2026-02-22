@@ -14,14 +14,37 @@ pip install pyritone
 from pyritone import PyritoneClient
 
 with PyritoneClient() as client:
-    client.goto(100, 70, 100)
+    dispatch = client.goto(100, 70, 100)
+    task_id = dispatch.get("task_id")
+    if task_id:
+        terminal = client.wait_for_task(task_id)
+        print(terminal["event"])
 ```
 
-## Advanced usage
+## Command API
 
-For developer workflows, lower-level APIs are still available:
+All top-level Baritone v1.15.0 commands are exposed as Python methods on:
+
+- `PyritoneClient` (sync)
+- `AsyncPyritoneClient` (async)
+
+Each command returns immediate dispatch info:
+
+- `command_text`
+- `raw` bridge response
+- optional `task_id`
+- optional `accepted`
+
+Command aliases are exposed too (`qmark`, `stop`, `wp`, etc). Full generated reference:
+
+- `python/docs/baritone-commands.md`
+
+## Low-level API still available
 
 - `execute("...")`
+- `cancel()`
+- `ping()`
+- `status_get()`
 - `next_event()`
 - `wait_for_task(task_id)`
 
@@ -45,6 +68,12 @@ pyritone status
 pyritone exec "goto 100 70 100"
 pyritone cancel
 pyritone events
+```
+
+## Regenerate command wrappers/docs
+
+```bash
+python tools/generate_baritone_commands.py
 ```
 
 ## End-to-End Dev Test

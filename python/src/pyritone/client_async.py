@@ -4,12 +4,25 @@ import asyncio
 import contextlib
 from typing import Any
 
+from .commands.async_build import AsyncBuildCommands
+from .commands.async_control import AsyncControlCommands
+from .commands.async_info import AsyncInfoCommands
+from .commands.async_navigation import AsyncNavigationCommands
+from .commands.async_waypoints import AsyncWaypointsCommands
+from .commands.async_world import AsyncWorldCommands
 from .discovery import resolve_bridge_info
 from .models import BridgeError, BridgeInfo
 from .protocol import decode_line, encode_line, new_request
 
 
-class AsyncPyritoneClient:
+class AsyncPyritoneClient(
+    AsyncNavigationCommands,
+    AsyncWorldCommands,
+    AsyncBuildCommands,
+    AsyncControlCommands,
+    AsyncInfoCommands,
+    AsyncWaypointsCommands,
+):
     TERMINAL_TASK_EVENTS = {"task.completed", "task.failed", "task.canceled"}
 
     def __init__(
@@ -100,25 +113,6 @@ class AsyncPyritoneClient:
             payload["task_id"] = task_id
         return await self._request("task.cancel", payload)
 
-    async def goto(self, x: int, y: int, z: int) -> dict[str, Any]:
-        command = f"goto {int(x)} {int(y)} {int(z)}"
-        result = await self.execute(command)
-        task_id = self._extract_task_id(result)
-        if task_id is None:
-            raise BridgeError("BAD_RESPONSE", "Bridge did not return task_id for goto", {"result": result})
-
-        terminal_event = await self.wait_for_task(task_id)
-        event_name = terminal_event.get("event")
-
-        if event_name in {"task.completed", "task.canceled"}:
-            return terminal_event
-
-        reason = self._failure_reason_from_event(terminal_event)
-        if event_name == "task.failed":
-            raise BridgeError("TASK_FAILED", reason, terminal_event)
-
-        raise BridgeError("BAD_RESPONSE", f"Unexpected terminal event: {event_name}", terminal_event)
-
     async def next_event(self, timeout: float | None = None) -> dict[str, Any]:
         if timeout is None:
             return await self._events.get()
@@ -200,25 +194,3 @@ class AsyncPyritoneClient:
     def _ensure_connected(self) -> None:
         if self._closed or self._writer is None:
             raise RuntimeError("Client is not connected")
-
-    @staticmethod
-    def _extract_task_id(result: dict[str, Any]) -> str | None:
-        task = result.get("task")
-        if not isinstance(task, dict):
-            return None
-        task_id = task.get("task_id")
-        return task_id if isinstance(task_id, str) and task_id else None
-
-    @staticmethod
-    def _failure_reason_from_event(event: dict[str, Any]) -> str:
-        data = event.get("data")
-        if isinstance(data, dict):
-            for key in ("detail", "reason", "message", "path_event", "stage"):
-                value = data.get(key)
-                if isinstance(value, str) and value.strip():
-                    return value
-        event_name = event.get("event")
-        if isinstance(event_name, str) and event_name:
-            return event_name
-        return "Unknown reason"
-

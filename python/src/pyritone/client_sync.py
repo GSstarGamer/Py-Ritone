@@ -5,6 +5,12 @@ import threading
 from typing import Any
 
 from .client_async import AsyncPyritoneClient
+from .commands.sync_build import SyncBuildCommands
+from .commands.sync_control import SyncControlCommands
+from .commands.sync_info import SyncInfoCommands
+from .commands.sync_navigation import SyncNavigationCommands
+from .commands.sync_waypoints import SyncWaypointsCommands
+from .commands.sync_world import SyncWorldCommands
 
 
 class _LoopThread:
@@ -36,7 +42,14 @@ class _LoopThread:
         self._started = False
 
 
-class PyritoneClient:
+class PyritoneClient(
+    SyncNavigationCommands,
+    SyncWorldCommands,
+    SyncBuildCommands,
+    SyncControlCommands,
+    SyncInfoCommands,
+    SyncWaypointsCommands,
+):
     def __init__(
         self,
         *,
@@ -86,9 +99,6 @@ class PyritoneClient:
 
     def cancel(self, task_id: str | None = None) -> dict[str, Any]:
         return self._runner.run(self._client.cancel(task_id))
-
-    def goto(self, x: int, y: int, z: int) -> dict[str, Any]:
-        return self._runner.run(self._client.goto(x, y, z))
 
     def next_event(self, timeout: float | None = None) -> dict[str, Any]:
         return self._runner.run(self._client.next_event(timeout=timeout))

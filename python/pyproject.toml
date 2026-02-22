@@ -40,9 +40,12 @@ include = [
   "src/pyritone",
   "tests",
   "pyproject.toml",
-  "README.md"
+  "README.md",
+  "tools",
+  "docs"
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 addopts = "-q"
+

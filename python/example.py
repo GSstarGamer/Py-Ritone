@@ -32,6 +32,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional explicit path to bridge-info.json",
     )
+    parser.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="Only dispatch goto and exit without waiting for completion",
+    )
     return parser.parse_args()
 
 
@@ -47,8 +52,8 @@ def detect_dev_bridge_info_path(explicit_path: str | None) -> str | None:
     return None
 
 
-def _task_end_reason(result: dict[str, object]) -> str | None:
-    data = result.get("data")
+def _task_end_reason(event: dict[str, object]) -> str | None:
+    data = event.get("data")
     if not isinstance(data, dict):
         return None
 
@@ -68,11 +73,26 @@ def main() -> int:
 
     try:
         with PyritoneClient(bridge_info_path=bridge_info_path) as client:
-            print(f"Running goto({args.x}, {args.y}, {args.z})...")
-            result = client.goto(args.x, args.y, args.z)
+            print(f"Dispatching goto({args.x}, {args.y}, {args.z})...")
+            dispatch = client.goto(args.x, args.y, args.z)
 
-            event_name = result.get("event", "task.completed")
-            reason = _task_end_reason(result)
+            print(f"Command text: {dispatch['command_text']}")
+            print(f"Accepted: {dispatch.get('accepted', True)}")
+
+            task_id = dispatch.get("task_id")
+            if not task_id:
+                print("No task_id returned; nothing to wait on.")
+                return 0
+
+            print(f"Task ID: {task_id}")
+            if args.no_wait:
+                return 0
+
+            print("Waiting for task completion...")
+            terminal_event = client.wait_for_task(task_id)
+            event_name = terminal_event.get("event", "task.completed")
+            reason = _task_end_reason(terminal_event)
+
             if reason:
                 print(f"Task ended: {event_name} ({reason})")
             else:
