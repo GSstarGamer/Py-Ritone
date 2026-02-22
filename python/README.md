@@ -40,6 +40,22 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+## Demos
+
+The quick examples above are intentionally small.
+
+For full, recordable feature walkthroughs, see:
+
+- `python/demos/README.md`
+
+Run from repo root:
+
+```bash
+python -m pip install -e ./python
+cd python
+python demos/01_connect_discovery.py
+```
+
 ## Docs
 
 - Full docs index: `python/docs/index.md`

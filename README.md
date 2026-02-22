@@ -32,6 +32,31 @@ with PyritoneClient() as client:
     print(client.execute("goto 100 70 100"))
 ```
 
+## Demos / Videos
+
+Beginner-friendly demo scripts live in `python/demos/`.
+
+- Demo index: `python/demos/README.md`
+- Fast start from repo root:
+
+```bash
+python -m pip install -e ./python
+cd python
+python demos/01_connect_discovery.py
+```
+
+- Suggested recording set includes:
+  - connect/discovery
+  - basic commands
+  - goto + completion
+  - live event feed
+  - cancel flow
+  - settings mode switch
+  - interactive mini console
+  - async workflow
+  - local-path build helper
+  - CLI entrypoints
+
 ## One-Click Dev Client
 
 - Double-click `run_dev_client.bat` at repo root, or run it in terminal:
