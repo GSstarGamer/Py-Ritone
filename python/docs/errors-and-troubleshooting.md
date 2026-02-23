@@ -7,26 +7,12 @@ Common failure codes and what to do next.
 - You got a `BridgeError` or `DiscoveryError`.
 - A command dispatch fails unexpectedly.
 
-### Sync example
+### Example
 
 ```python
-from pyritone import BridgeError, DiscoveryError, PyritoneClient
+from pyritone import BridgeError, Client, DiscoveryError
 
-try:
-    with PyritoneClient() as client:
-        print(client.status_get())
-except DiscoveryError as error:
-    print("Discovery failed:", error)
-except BridgeError as error:
-    print("Bridge error:", error.code, error.message)
-```
-
-### Async example
-
-```python
-from pyritone import AsyncPyritoneClient, BridgeError, DiscoveryError
-
-client = AsyncPyritoneClient()
+client = Client()
 try:
     await client.connect()
     print(await client.status_get())
@@ -71,4 +57,3 @@ DiscoveryError:
 - `connection-and-discovery.md`
 - `tasks-events-and-waiting.md`
 - `../runbook.md`
-

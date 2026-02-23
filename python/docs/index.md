@@ -9,7 +9,6 @@ Usage-first documentation for the `pyritone` package.
 
 ## Client Guides
 
-- `sync-client.md`
 - `async-client.md`
 
 ## Core Workflows
@@ -32,4 +31,3 @@ Usage-first documentation for the `pyritone` package.
 ## Source Appendix
 
 - `baritone-commands.md`
-

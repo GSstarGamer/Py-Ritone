@@ -6,11 +6,11 @@ _repo_src = Path(__file__).resolve().parent / "src"
 if _repo_src.exists():
     sys.path.insert(0, str(_repo_src))
 
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
+    client = Client()
     await client.connect()
     try:
         print(await client.ping())

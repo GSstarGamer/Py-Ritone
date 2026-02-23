@@ -7,31 +7,15 @@ Go from install to first command in a few minutes.
 - You just installed `pyritone`.
 - You want the shortest path to a working call.
 
-### Sync example
-
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    print(client.ping())
-    print(client.status_get())
-    dispatch = client.build_file("schematics/base.schem", 100, 70, 100)
-    print(dispatch)
-
-    task_id = dispatch.get("task_id")
-    if task_id:
-        print(client.wait_for_task(task_id))
-```
-
-### Async example
+### Example
 
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
+    client = Client()
     await client.connect()
     try:
         print(await client.ping())

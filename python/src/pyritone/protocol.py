@@ -14,16 +14,24 @@ def new_request(method: str, params: dict[str, Any] | None = None, request_id: s
     }
 
 
-def encode_line(payload: dict[str, Any]) -> bytes:
-    return (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
+def encode_message(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, separators=(",", ":"))
 
 
-def decode_line(line: bytes | str) -> dict[str, Any]:
-    if isinstance(line, bytes):
-        text = line.decode("utf-8")
+def decode_message(message: bytes | str) -> dict[str, Any]:
+    if isinstance(message, bytes):
+        text = message.decode("utf-8")
     else:
-        text = line
+        text = message
     parsed = json.loads(text)
     if not isinstance(parsed, dict):
         raise ValueError("Protocol payload must be a JSON object")
     return parsed
+
+
+def encode_line(payload: dict[str, Any]) -> bytes:
+    return (encode_message(payload) + "\n").encode("utf-8")
+
+
+def decode_line(line: bytes | str) -> dict[str, Any]:
+    return decode_message(line)

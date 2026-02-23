@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pyritone.client_async import AsyncPyritoneClient
+from pyritone.client_async import AsyncPyritoneClient, Client
 from pyritone.client_sync import PyritoneClient
 from pyritone.commands._core import build_command_text
 from pyritone.models import BridgeError
@@ -13,21 +13,6 @@ from pyritone.schematic_paths import normalize_build_coords, normalize_schematic
 
 def _resolve_from_here(relative_path: str) -> str:
     return normalize_schematic_path(relative_path)
-
-
-class FakeSyncBuildClient(PyritoneClient):
-    def __init__(self, dispatch: dict[str, object]) -> None:
-        self._dispatch = dispatch
-        self.build_calls: list[tuple[object, ...]] = []
-        self.wait_calls: list[str] = []
-
-    def build(self, *args):
-        self.build_calls.append(args)
-        return self._dispatch
-
-    def wait_for_task(self, task_id: str):
-        self.wait_calls.append(task_id)
-        return {"event": "task.completed", "data": {"task_id": task_id}}
 
 
 class FakeAsyncBuildClient(AsyncPyritoneClient):
@@ -43,6 +28,10 @@ class FakeAsyncBuildClient(AsyncPyritoneClient):
     async def wait_for_task(self, task_id: str):
         self.wait_calls.append(task_id)
         return {"event": "task.completed", "data": {"task_id": task_id}}
+
+
+def test_pyritone_client_alias_is_async():
+    assert PyritoneClient is Client
 
 
 def test_relative_path_defaults_to_caller_file_directory():
@@ -104,28 +93,6 @@ def test_invalid_coordinate_count_raises():
 def test_invalid_coordinate_type_raises():
     with pytest.raises(ValueError, match="coordinates must be integers"):
         normalize_build_coords((1, 2, True))
-
-
-def test_sync_build_file_wait_returns_terminal_event(tmp_path):
-    client = FakeSyncBuildClient({"raw": {}, "command_text": "build x", "task_id": "task-1", "accepted": True})
-    event = client.build_file_wait("house.schem", 100, 70, 100, base_dir=tmp_path)
-
-    assert event["event"] == "task.completed"
-    assert client.wait_calls == ["task-1"]
-    assert len(client.build_calls) == 1
-    assert client.build_calls[0][0] == (tmp_path / "house.schem").resolve().as_posix()
-    assert client.build_calls[0][1:] == (100, 70, 100)
-
-
-def test_sync_build_file_wait_raises_when_task_id_missing(tmp_path):
-    client = FakeSyncBuildClient({"raw": {}, "command_text": "build x", "accepted": True})
-
-    with pytest.raises(BridgeError) as error:
-        client.build_file_wait("house.schem", base_dir=tmp_path)
-
-    assert error.value.code == "BAD_RESPONSE"
-    assert error.value.message == "No task_id returned for command: build"
-    assert error.value.payload == {}
 
 
 @pytest.mark.asyncio

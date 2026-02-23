@@ -7,30 +7,12 @@ How to handle dispatch, task IDs, and terminal task events.
 - You need completion/failure state, not just dispatch success.
 - You want to consume bridge events (`task.*`, `baritone.path_event`, etc.).
 
-### Sync example
+### Example
 
 ```python
-from pyritone import PyritoneClient
+from pyritone import Client
 
-with PyritoneClient() as client:
-    dispatch = client.goto(100, 70, 100)
-    print(dispatch)
-
-    task_id = dispatch.get("task_id")
-    if task_id:
-        def on_update(event):
-            print("update:", event["event"])
-
-        terminal = client.wait_for_task(task_id, on_update=on_update)
-        print(terminal["event"], terminal["data"])
-```
-
-### Async example
-
-```python
-from pyritone import AsyncPyritoneClient
-
-client = AsyncPyritoneClient()
+client = Client()
 await client.connect()
 try:
     dispatch = await client.goto(100, 70, 100)
@@ -79,6 +61,5 @@ Non-terminal update events for the same task_id:
 
 ### Related methods
 
-- `sync-client.md`
 - `async-client.md`
 - `commands/navigation.md`

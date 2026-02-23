@@ -21,6 +21,9 @@ def test_explicit_values_override_env_and_file(tmp_path, monkeypatch):
     assert resolved.host == "127.0.0.1"
     assert resolved.port == 27841
     assert resolved.token == "explicit-token"
+    assert resolved.ws_url == "ws://127.0.0.1:27841/ws"
+    assert resolved.ws_path == "/ws"
+    assert resolved.transport == "websocket"
 
 
 def test_env_values_override_file(tmp_path, monkeypatch):
@@ -36,6 +39,7 @@ def test_env_values_override_file(tmp_path, monkeypatch):
     assert resolved.host == "127.0.0.1"
     assert resolved.port == 27841
     assert resolved.token == "env-token"
+    assert resolved.ws_url == "ws://127.0.0.1:27841/ws"
 
 
 def test_auto_discovery_falls_back_to_dev_bridge_info(tmp_path, monkeypatch):
@@ -52,3 +56,16 @@ def test_auto_discovery_falls_back_to_dev_bridge_info(tmp_path, monkeypatch):
     assert resolved.host == "127.0.0.1"
     assert resolved.port == 27841
     assert resolved.token == "dev-token"
+    assert resolved.ws_url == "ws://127.0.0.1:27841/ws"
+
+
+def test_ws_url_env_override(monkeypatch):
+    monkeypatch.setenv("PYRITONE_TOKEN", "env-token")
+    monkeypatch.setenv("PYRITONE_WS_URL", "ws://10.0.0.5:40000/custom")
+
+    resolved = discovery.resolve_bridge_info()
+
+    assert resolved.host == "10.0.0.5"
+    assert resolved.port == 40000
+    assert resolved.ws_url == "ws://10.0.0.5:40000/custom"
+    assert resolved.ws_path == "/custom"

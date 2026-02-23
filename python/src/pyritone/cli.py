@@ -5,7 +5,7 @@ import asyncio
 import json
 from typing import Any
 
-from .client_async import AsyncPyritoneClient
+from .client_async import Client
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,7 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 async def run_async(args: argparse.Namespace) -> int:
-    client = AsyncPyritoneClient(
+    client = Client(
         host=args.host,
         port=args.port,
         token=args.token,

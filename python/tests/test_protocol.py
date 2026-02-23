@@ -1,6 +1,6 @@
 import pytest
 
-from pyritone.protocol import decode_line, encode_line, new_request
+from pyritone.protocol import decode_line, decode_message, encode_line, encode_message, new_request
 
 
 def test_new_request_shape():
@@ -25,6 +25,13 @@ def test_encode_line_adds_newline_framing():
 
     assert isinstance(encoded, bytes)
     assert encoded.endswith(b"\n")
+
+
+def test_encode_decode_message_roundtrip():
+    payload = {"type": "event", "event": "task.progress", "data": {"task_id": "x"}}
+    encoded = encode_message(payload)
+    decoded = decode_message(encoded)
+    assert decoded == payload
 
 
 def test_encode_decode_roundtrip():

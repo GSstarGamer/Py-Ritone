@@ -8,26 +8,15 @@
 pip install pyritone
 ```
 
-## Fastest Working Sync Example
-
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    print(client.ping())
-    dispatch = client.build_file("schematics/base.schem", 100, 70, 100)
-    print(dispatch)
-```
-
 ## Fastest Working Async Example
 
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
+    client = Client()
     await client.connect()
     try:
         print(await client.ping())
@@ -60,7 +49,6 @@ python demos/01_connect_discovery.py
 
 - Full docs index: `python/docs/index.md`
 - Quickstart: `python/docs/quickstart.md`
-- Sync client guide: `python/docs/sync-client.md`
 - Async client guide: `python/docs/async-client.md`
 - Settings API: `python/docs/settings-api.md`
 - Tasks/events/waiting: `python/docs/tasks-events-and-waiting.md`
@@ -79,18 +67,19 @@ python demos/01_connect_discovery.py
 ## Public API Map
 
 - Clients:
+  - `Client` (primary)
   - `PyritoneClient`
   - `AsyncPyritoneClient`
+  - `PyritoneClient` and `AsyncPyritoneClient` are temporary async aliases of `Client`.
 - Low-level methods:
-  - `ping`, `status_get`, `execute`, `cancel`, `next_event`, `wait_for_task`
+  - `ping`, `status_get`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
 - Command wrappers:
   - All top-level Baritone commands exposed as methods.
 - Local schematic helpers:
   - `build_file(path, *coords, base_dir=None)`
   - `build_file_wait(path, *coords, base_dir=None)`
 - Settings namespace:
-  - Sync: `client.settings.allowPlace = True`
-  - Async: `await client.settings.allowPlace.set(True)`
+  - `await client.settings.allowPlace.set(True)`
 
 ## Auto-Discovery (Zero-Setup)
 

@@ -1,27 +1,21 @@
 # Async Client
 
-Guide for `AsyncPyritoneClient` in asyncio code.
+Guide for `Client` in asyncio code.
 
 ### When to use this
 
 - Your app already uses asyncio.
 - You want event-stream friendly control flow.
 
-### Sync example
-
-```python
-# Use PyritoneClient instead; see sync-client.md.
-```
-
-### Async example
+### Example
 
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
+    client = Client()
     await client.connect()
     try:
         print(await client.ping())
@@ -66,6 +60,5 @@ Build helpers:
 
 ### Related methods
 
-- `sync-client.md`
 - `tasks-events-and-waiting.md`
 - `settings-api.md`

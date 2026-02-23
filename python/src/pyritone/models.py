@@ -9,6 +9,9 @@ class BridgeInfo:
     host: str
     port: int
     token: str
+    ws_url: str
+    ws_path: str = "/ws"
+    transport: str = "websocket"
     protocol_version: int | None = None
     server_version: str | None = None
 

@@ -1,4 +1,6 @@
-from .client_async import AsyncPyritoneClient
+import logging
+
+from .client_async import AsyncPyritoneClient, Client
 from .client_sync import PyritoneClient
 from .commands import ALIAS_TO_CANONICAL, BARITONE_VERSION, COMMAND_SPECS, CommandArg, CommandDispatchResult
 from .models import BridgeError, BridgeInfo, DiscoveryError
@@ -9,9 +11,12 @@ __all__ = [
     "BARITONE_VERSION",
     "BridgeError",
     "BridgeInfo",
+    "Client",
     "COMMAND_SPECS",
     "CommandArg",
     "CommandDispatchResult",
     "DiscoveryError",
     "PyritoneClient",
 ]
+
+logging.getLogger("pyritone").addHandler(logging.NullHandler())

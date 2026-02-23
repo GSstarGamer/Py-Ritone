@@ -7,24 +7,12 @@ Use the settings namespace to get/set/toggle/reset Baritone settings cleanly.
 - You want typed-looking access like `client.settings.allowPlace`.
 - You need to modify settings before pathing commands.
 
-### Sync example
+### Example
 
 ```python
-from pyritone import PyritoneClient
+from pyritone import Client
 
-with PyritoneClient() as client:
-    client.settings.allowPlace = True
-    print(client.settings.allowPlace.get())
-    print(client.settings.allowPlace.toggle())
-    print(client.settings.allowPlace.reset())
-```
-
-### Async example
-
-```python
-from pyritone import AsyncPyritoneClient
-
-client = AsyncPyritoneClient()
+client = Client()
 await client.connect()
 try:
     print(await client.settings.allowPlace.set(True))
@@ -48,7 +36,6 @@ The command text uses the `set` command internally:
 
 ### Common mistakes
 
-- Using attribute assignment in async mode (`client.settings.x = ...` is sync-style only).
 - Expecting direct Python booleans back from `get()`; you get dispatch payload.
 - Forgetting that setting names are Baritone setting identifiers.
 
@@ -57,4 +44,3 @@ The command text uses the `set` command internally:
 - `commands/control.md`
 - `tasks-events-and-waiting.md`
 - `errors-and-troubleshooting.md`
-

@@ -7,19 +7,13 @@ Use `pyritone` directly from terminal for quick checks and scripts.
 - You want quick diagnostics without writing Python code.
 - You need shell scripts for simple bridge automation.
 
-### Sync example
+### Example
 
 ```bash
 pyritone ping
 pyritone status
 pyritone exec "goto 100 70 100"
 pyritone cancel
-```
-
-### Async example
-
-```text
-The CLI is internally async, but you use it as normal shell commands.
 ```
 
 ### Return shape
@@ -38,7 +32,7 @@ CLI commands print JSON payloads from the bridge:
 
 ### Related methods
 
-- Python equivalent APIs: `sync-client.md`, `async-client.md`
+- Python equivalent APIs: `async-client.md`
 - Troubleshooting: `errors-and-troubleshooting.md`
 
 ## Commands
@@ -56,4 +50,3 @@ CLI commands print JSON payloads from the bridge:
 - `--token`
 - `--bridge-info`
 - `--timeout`
-

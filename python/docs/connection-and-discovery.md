@@ -7,21 +7,12 @@ How `pyritone` finds and authenticates with the local bridge.
 - You need to understand zero-setup behavior.
 - You are debugging token/host/port issues.
 
-### Sync example
+### Example
 
 ```python
-from pyritone import PyritoneClient
+from pyritone import Client
 
-with PyritoneClient() as client:
-    print(client.ping())
-```
-
-### Async example
-
-```python
-from pyritone import AsyncPyritoneClient
-
-client = AsyncPyritoneClient()
+client = Client()
 await client.connect()
 try:
     print(await client.ping())
@@ -34,7 +25,7 @@ finally:
 ```text
 connect() returns None after:
 1) bridge discovery
-2) TCP connection
+2) websocket connection
 3) auth.login handshake
 ```
 
@@ -44,6 +35,7 @@ connect() returns None after:
 2. Environment variables:
    - `PYRITONE_BRIDGE_INFO`
    - `PYRITONE_TOKEN`
+   - `PYRITONE_WS_URL`
    - `PYRITONE_HOST`
    - `PYRITONE_PORT`
 3. Auto-discovery file:
@@ -57,7 +49,5 @@ connect() returns None after:
 
 ### Related methods
 
-- `sync-client.md`
 - `async-client.md`
 - `errors-and-troubleshooting.md`
-
