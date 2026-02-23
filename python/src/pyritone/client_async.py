@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import contextlib
+import contextvars
 import inspect
 import json
 import logging
@@ -21,9 +22,9 @@ from .commands.async_info import AsyncInfoCommands
 from .commands.async_navigation import AsyncNavigationCommands
 from .commands.async_waypoints import AsyncWaypointsCommands
 from .commands.async_world import AsyncWorldCommands
-from .commands._types import CommandDispatchResult
+from .commands._types import CommandArg, CommandDispatchResult
 from .discovery import resolve_bridge_info
-from .models import BridgeError, BridgeInfo, RemoteRef, TypedCallError
+from .models import BridgeError, BridgeInfo, RemoteRef, TypedCallError, VisibleEntity
 from .protocol import decode_message, encode_message, new_request
 from .schematic_paths import normalize_build_coords, normalize_schematic_path
 from .settings import AsyncSettingsNamespace
@@ -31,6 +32,10 @@ from .settings import AsyncSettingsNamespace
 EventPayload = dict[str, Any]
 EventCheck = Callable[[EventPayload], bool]
 EventCallback = Callable[[EventPayload], Any]
+_execute_notice_label: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "pyritone_execute_notice_label",
+    default=None,
+)
 
 
 @dataclass(slots=True)
@@ -170,6 +175,28 @@ class _TaskNamespace:
         )
 
 
+class WorldView:
+    def __init__(self, client: "Client") -> None:
+        self._client = client
+
+    async def get_entities(
+        self,
+        types: str | list[str] | tuple[str, ...] | None = None,
+    ) -> list[VisibleEntity]:
+        return await self._client.entities_list(types=types)
+
+
+class PlayerView:
+    def __init__(self, client: "Client") -> None:
+        self._client = client
+
+    async def get_entities(
+        self,
+        types: str | list[str] | tuple[str, ...] | None = None,
+    ) -> list[VisibleEntity]:
+        return await self._client.entities_list(types=types)
+
+
 class Client(
     AsyncNavigationCommands,
     AsyncWorldCommands,
@@ -180,6 +207,7 @@ class Client(
 ):
     TERMINAL_TASK_EVENTS = {"task.completed", "task.failed", "task.canceled"}
     ANY_EVENT = "*"
+    WAIT_FOR_TASK_POLL_SECONDS = 0.25
 
     def __init__(
         self,
@@ -324,6 +352,69 @@ class Client(
     async def status_unsubscribe(self) -> dict[str, Any]:
         return await self._request("status.unsubscribe", {})
 
+    async def get_world(self) -> WorldView:
+        return WorldView(self)
+
+    async def get_player(self) -> PlayerView:
+        return PlayerView(self)
+
+    async def entities_list(
+        self,
+        types: str | list[str] | tuple[str, ...] | None = None,
+    ) -> list[VisibleEntity]:
+        normalized_types = _normalize_entity_types(types)
+        payload: dict[str, Any]
+        if normalized_types is None:
+            payload = {}
+        else:
+            payload = {"types": normalized_types}
+
+        result = await self._request("entities.list", payload)
+        raw_entities = result.get("entities")
+        if not isinstance(raw_entities, list):
+            raise BridgeError("BAD_RESPONSE", "Expected list in entities.list result.entities", result)
+
+        entities: list[VisibleEntity] = []
+        for index, raw_entity in enumerate(raw_entities):
+            if not isinstance(raw_entity, dict):
+                raise BridgeError("BAD_RESPONSE", f"Expected object at entities[{index}]", result)
+            try:
+                entities.append(VisibleEntity.from_payload(raw_entity))
+            except (TypeError, ValueError) as error:
+                raise BridgeError(
+                    "BAD_RESPONSE",
+                    f"Invalid entity payload at entities[{index}]: {error}",
+                    result,
+                ) from error
+
+        return entities
+
+    async def goto_entity(
+        self,
+        entity: VisibleEntity | dict[str, Any],
+        *,
+        wait: bool = True,
+    ) -> dict[str, Any]:
+        if isinstance(entity, VisibleEntity):
+            visible = entity
+        elif isinstance(entity, dict):
+            visible = VisibleEntity.from_payload(entity)
+        else:
+            raise TypeError("entity must be VisibleEntity or dict[str, Any]")
+
+        x = round(visible.x)
+        y = round(visible.y)
+        z = round(visible.z)
+
+        type_id_for_label = visible.type_id if ":" in visible.type_id else f"minecraft:{visible.type_id}"
+        token = _execute_notice_label.set(f"goto_entity {type_id_for_label} id={visible.id}")
+        try:
+            if wait:
+                return await self.goto_wait(x, y, z)
+            return await self.goto(x, y, z)
+        finally:
+            _execute_notice_label.reset(token)
+
     async def api_metadata_get(self, target: str | RemoteRef | dict[str, Any] | None = None) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         if target is not None:
@@ -368,13 +459,17 @@ class Client(
             raise BridgeError("BAD_RESPONSE", "Expected value in api.invoke result", result)
         return _decode_typed_value(result["value"])
 
-    async def execute(self, command: str) -> dict[str, Any]:
+    async def execute(self, command: str, *, label: str | None = None) -> dict[str, Any]:
         """Execute raw Baritone command text.
 
         Advanced escape hatch for command interop/CLI-style flows.
         Prefer generated command wrappers or typed `client.baritone.*` APIs in new code.
         """
-        return await self._request("baritone.execute", {"command": command})
+        resolved_label = label if label is not None else _execute_notice_label.get()
+        payload: dict[str, Any] = {"command": command}
+        if isinstance(resolved_label, str) and resolved_label.strip():
+            payload["label"] = resolved_label
+        return await self._request("baritone.execute", payload)
 
     async def cancel(self, task_id: str | None = None) -> dict[str, Any]:
         payload: dict[str, Any] = {}
@@ -425,19 +520,31 @@ class Client(
         *,
         on_update: Callable[[dict[str, Any]], Any] | None = None,
         timeout: float | None = None,
+        prefer_path_hints: bool = False,
     ) -> EventPayload:
         deadline: float | None = None
         if timeout is not None:
             deadline = asyncio.get_running_loop().time() + timeout
 
         while True:
+            if self._closed and self._events.empty():
+                raise ConnectionError("Connection closed by bridge")
+
             remaining: float | None = None
             if deadline is not None:
                 remaining = deadline - asyncio.get_running_loop().time()
                 if remaining <= 0:
                     raise TimeoutError()
 
-            event = await self.next_event(timeout=remaining)
+            poll_timeout = remaining
+            if poll_timeout is None or poll_timeout > self.WAIT_FOR_TASK_POLL_SECONDS:
+                poll_timeout = self.WAIT_FOR_TASK_POLL_SECONDS
+
+            try:
+                event = await self.next_event(timeout=poll_timeout)
+            except asyncio.TimeoutError:
+                continue
+
             data = event.get("data")
             if not isinstance(data, dict):
                 continue
@@ -445,6 +552,16 @@ class Client(
                 continue
 
             event_name = event.get("event")
+            if (
+                prefer_path_hints
+                and event_name == "baritone.path_event"
+            ):
+                path_event = data.get("path_event")
+                if path_event == "AT_GOAL":
+                    return _synthetic_task_completed_event(task_id, event)
+                if path_event == "CANCELED":
+                    return _synthetic_task_canceled_event(task_id, event)
+
             if isinstance(event_name, str) and event_name in self.TERMINAL_TASK_EVENTS:
                 return event
 
@@ -452,6 +569,14 @@ class Client(
                 callback_result = on_update(event)
                 if inspect.isawaitable(callback_result):
                     await callback_result
+
+    async def goto_wait(self, x: int, y: int, z: int, *extra_args: CommandArg) -> dict[str, Any]:
+        """Dispatch `goto` and wait for completion with an AT_GOAL fast path."""
+        dispatch = await self.goto(x, y, z, *extra_args)
+        task_id = dispatch.get("task_id")
+        if not task_id:
+            raise BridgeError("BAD_RESPONSE", "No task_id returned for command: goto", dispatch["raw"])
+        return await self.wait_for_task(task_id, prefer_path_hints=True)
 
     async def build_file(
         self,
@@ -723,6 +848,65 @@ def _redact_sensitive_payload(payload: EventPayload) -> EventPayload:
         redacted_params["token"] = "***"
     redacted["params"] = redacted_params
     return redacted
+
+
+def _normalize_entity_types(
+    types: str | list[str] | tuple[str, ...] | None,
+) -> list[str] | None:
+    if types is None:
+        return None
+
+    raw_types: list[str]
+    if isinstance(types, str):
+        raw_types = [types]
+    elif isinstance(types, (list, tuple)):
+        raw_types = list(types)
+    else:
+        raise TypeError("types must be None, a string, or a list/tuple of strings")
+
+    normalized: list[str] = []
+    for index, entry in enumerate(raw_types):
+        if not isinstance(entry, str):
+            raise TypeError(f"types[{index}] must be a string")
+        token = entry.strip()
+        if not token:
+            raise ValueError(f"types[{index}] must be a non-empty string")
+        normalized.append(token)
+    return normalized
+
+
+def _synthetic_task_completed_event(task_id: str, source_event: EventPayload) -> EventPayload:
+    data: dict[str, Any] = {
+        "task_id": task_id,
+        "detail": "Reached goal",
+        "stage": "at_goal_hint",
+    }
+    payload: EventPayload = {
+        "type": "event",
+        "event": "task.completed",
+        "data": data,
+    }
+    ts = source_event.get("ts")
+    if isinstance(ts, str):
+        payload["ts"] = ts
+    return payload
+
+
+def _synthetic_task_canceled_event(task_id: str, source_event: EventPayload) -> EventPayload:
+    data: dict[str, Any] = {
+        "task_id": task_id,
+        "detail": "Baritone canceled",
+        "stage": "canceled_hint",
+    }
+    payload: EventPayload = {
+        "type": "event",
+        "event": "task.canceled",
+        "data": data,
+    }
+    ts = source_event.get("ts")
+    if isinstance(ts, str):
+        payload["ts"] = ts
+    return payload
 
 
 def _encode_typed_target(target: str | RemoteRef | dict[str, Any]) -> dict[str, Any]:

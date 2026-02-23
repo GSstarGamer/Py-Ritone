@@ -19,13 +19,13 @@ public final class PyritoneCommand {
                             context.getSource().sendFeedback(Text.literal(mod.commandStatusLine()));
                             return 1;
                         }))
-                    .then(ClientCommandManager.literal("cancel")
+                    .then(ClientCommandManager.literal("end")
                         .executes(context -> {
-                            boolean canceled = mod.forceCancelActiveTaskFromPyritoneCommand();
-                            if (canceled) {
-                                context.getSource().sendFeedback(Text.literal("Requested hard cancel for active Py-Ritone task"));
+                            int disconnected = mod.endPythonSessionsFromPyritoneCommand();
+                            if (disconnected > 0) {
+                                context.getSource().sendFeedback(Text.literal("Ended " + disconnected + " Python websocket session(s)"));
                             } else {
-                                context.getSource().sendFeedback(Text.literal("No active Py-Ritone task"));
+                                context.getSource().sendFeedback(Text.literal("No authenticated Python websocket sessions"));
                             }
                             return 1;
                         }))

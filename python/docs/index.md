@@ -33,4 +33,5 @@ Usage-first documentation for the `pyritone` package.
 
 - `baritone-commands.md`
 - `baritone-typed-parity.md`
+- `rework-capability-inventory.md`
 - `release-parity-fallback-report.md`

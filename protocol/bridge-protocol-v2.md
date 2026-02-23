@@ -50,8 +50,38 @@
 - `api.metadata.get {target?}`
 - `api.construct {type,args,parameter_types?}`
 - `api.invoke {target,method,args,parameter_types?}`
-- `baritone.execute {command}`
+- `entities.list {types?}`
+- `baritone.execute {command,label?}`
 - `task.cancel {task_id?}`
+
+### `entities.list` payloads
+
+Request:
+
+- `types` (optional): `string[]`
+- Supported entries:
+  - Explicit entity IDs like `minecraft:zombie`
+  - Group tokens: `group:players`, `group:mobs`
+
+Response:
+
+- `entities`: nearest-first array (ascending `distance_sq`) of:
+  - `id`: entity UUID string
+  - `type_id`: registry ID (`namespace:path`)
+  - `category`: entity spawn-group category string
+  - `x`, `y`, `z`: position snapshot coordinates
+  - `distance_sq`: squared distance from local player
+
+Behavior notes:
+
+- Excludes the local player from the result set.
+- Defaults to all visible world entities when `types` is omitted.
+
+### `baritone.execute` payload notes
+
+- `command` (required): raw Baritone command text.
+- `label` (optional): human-readable notice string shown in the in-game
+  `Python execute: ...` bridge message while still executing `command`.
 
 ## Events
 
@@ -102,10 +132,10 @@
 - Raw `baritone.path_event` hints (for example `AT_GOAL`, `CANCELED`, `CALC_FAILED`) do not immediately terminate the task.
 - The bridge waits for a short quiescence window so `wait_for_task(...)` does not end early on recalculation churn.
 
-### Hard cancel command semantics
+### Hard end command semantics
 
-- `#pyritone cancel` (Baritone hash command) and `/pyritone cancel` (Fabric command) trigger a hard cancel path.
-- Hard cancel force-terminates the active tracked task with `task.canceled` stage `pyritone_cancel_command`.
+- `#pyritone end` (Baritone hash command) and `/pyritone end` (Fabric command) force-close authenticated Python websocket sessions.
+- This is an operator stop control and is independent from `task.cancel`.
 
 ## Error Codes
 

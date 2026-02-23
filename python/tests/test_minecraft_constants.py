@@ -32,6 +32,13 @@ def test_minecraft_identifier_constants_are_namespaced_and_typed():
     assert entities.from_id("skeleton").path == "skeleton"
 
 
+def test_entity_group_constants_are_exported():
+    assert entities.GROUP_PLAYERS == "group:players"
+    assert entities.GROUP_MOBS == "group:mobs"
+    assert "GROUP_PLAYERS" in entities.__all__
+    assert "GROUP_MOBS" in entities.__all__
+
+
 @pytest.mark.asyncio
 async def test_block_constants_interop_with_typed_baritone_wrappers():
     observed_constructs: list[dict[str, Any]] = []

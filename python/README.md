@@ -65,6 +65,7 @@ python demos/01_connect_discovery.py
   - `python/docs/commands/aliases.md`
 - Raw Baritone appendix: `python/docs/baritone-commands.md`
 - Typed parity matrix: `python/docs/baritone-typed-parity.md`
+- Rework capability inventory: `python/docs/rework-capability-inventory.md`
 - Release parity/debt report: `python/docs/release-parity-fallback-report.md`
 
 ## Public API Map

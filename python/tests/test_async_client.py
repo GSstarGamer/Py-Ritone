@@ -8,7 +8,7 @@ from websockets.asyncio.server import ServerConnection, serve
 
 from pyritone.client_async import AsyncPyritoneClient
 from pyritone.baritone import TypedTaskHandle
-from pyritone.models import BridgeError, RemoteRef, TypedCallError
+from pyritone.models import BridgeError, RemoteRef, TypedCallError, VisibleEntity
 from pyritone.protocol import decode_message, encode_message
 
 
@@ -449,6 +449,150 @@ async def test_goto_wait_waits_for_terminal_event():
 
 
 @pytest.mark.asyncio
+async def test_goto_wait_returns_immediately_on_at_goal_path_event():
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "baritone.execute":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "accepted": True,
+                                "task": {"task_id": "goto-task"},
+                            },
+                        }
+                    )
+                )
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "event",
+                            "event": "baritone.path_event",
+                            "data": {"task_id": "goto-task", "path_event": "AT_GOAL"},
+                            "ts": "2026-01-01T00:00:01Z",
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        terminal_event = await asyncio.wait_for(client.goto_wait(10, 64, 10), timeout=1.0)
+        assert terminal_event["event"] == "task.completed"
+        assert terminal_event["data"]["task_id"] == "goto-task"
+        assert terminal_event["data"]["stage"] == "at_goal_hint"
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_goto_wait_returns_immediately_on_canceled_path_event():
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "baritone.execute":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "accepted": True,
+                                "task": {"task_id": "goto-task"},
+                            },
+                        }
+                    )
+                )
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "event",
+                            "event": "baritone.path_event",
+                            "data": {"task_id": "goto-task", "path_event": "CANCELED"},
+                            "ts": "2026-01-01T00:00:01Z",
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        terminal_event = await asyncio.wait_for(client.goto_wait(10, 64, 10), timeout=1.0)
+        assert terminal_event["event"] == "task.canceled"
+        assert terminal_event["data"]["task_id"] == "goto-task"
+        assert terminal_event["data"]["stage"] == "canceled_hint"
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
 async def test_goto_wait_raises_when_task_id_is_missing():
     async def handler(websocket: ServerConnection):
         async for message in websocket:
@@ -503,6 +647,404 @@ async def test_goto_wait_raises_when_task_id_is_missing():
             await client.goto_wait(10, 64, 10)
 
         assert error.value.code == "BAD_RESPONSE"
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_goto_wait_raises_connection_error_on_disconnect_before_terminal_event():
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "baritone.execute":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "accepted": True,
+                                "task": {"task_id": "goto-task"},
+                            },
+                        }
+                    )
+                )
+                await websocket.close()
+                break
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        with pytest.raises(ConnectionError):
+            await asyncio.wait_for(client.goto_wait(10, 64, 10), timeout=2.0)
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_entities_list_sends_types_and_decodes_visible_entities():
+    observed_params: list[dict[str, Any]] = []
+
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "entities.list":
+                params = request.get("params")
+                observed_params.append(params if isinstance(params, dict) else {})
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "entities": [
+                                    {
+                                        "id": "entity-1",
+                                        "type_id": "minecraft:zombie",
+                                        "category": "monster",
+                                        "x": 12.25,
+                                        "y": 64.0,
+                                        "z": -2.5,
+                                        "distance_sq": 4.0,
+                                    }
+                                ]
+                            },
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+
+        entities_with_filter = await client.entities_list(types="group:mobs")
+        entities_unfiltered = await client.entities_list()
+
+        assert observed_params == [{"types": ["group:mobs"]}, {}]
+        assert len(entities_with_filter) == 1
+        assert isinstance(entities_with_filter[0], VisibleEntity)
+        assert entities_with_filter[0] == VisibleEntity(
+            id="entity-1",
+            type_id="minecraft:zombie",
+            category="monster",
+            x=12.25,
+            y=64.0,
+            z=-2.5,
+            distance_sq=4.0,
+        )
+        assert len(entities_unfiltered) == 1
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_player_and_world_views_delegate_get_entities():
+    expected = [
+        VisibleEntity(
+            id="entity-1",
+            type_id="minecraft:zombie",
+            category="monster",
+            x=0.0,
+            y=64.0,
+            z=0.0,
+            distance_sq=1.0,
+        )
+    ]
+    observed_types: list[str | list[str] | tuple[str, ...] | None] = []
+
+    client = AsyncPyritoneClient(ws_url="ws://127.0.0.1:1/ws", token="token")
+
+    async def fake_entities_list(types: str | list[str] | tuple[str, ...] | None = None) -> list[VisibleEntity]:
+        observed_types.append(types)
+        return expected
+
+    client.entities_list = fake_entities_list  # type: ignore[method-assign]
+
+    player = await client.get_player()
+    world = await client.get_world()
+
+    player_entities = await player.get_entities(types="group:mobs")
+    world_entities = await world.get_entities(types=["group:players"])
+
+    assert observed_types == ["group:mobs", ["group:players"]]
+    assert player_entities == expected
+    assert world_entities == expected
+
+
+@pytest.mark.asyncio
+async def test_goto_entity_wait_true_calls_goto_wait():
+    client = AsyncPyritoneClient(ws_url="ws://127.0.0.1:1/ws", token="token")
+    observed_calls: list[tuple[int, int, int]] = []
+
+    async def fake_goto_wait(x: int, y: int, z: int, *extra_args: Any) -> dict[str, Any]:
+        assert extra_args == ()
+        observed_calls.append((x, y, z))
+        return {"event": "task.completed", "data": {"task_id": "goal-1"}}
+
+    client.goto_wait = fake_goto_wait  # type: ignore[method-assign]
+
+    terminal = await client.goto_entity(
+        VisibleEntity(
+            id="entity-1",
+            type_id="minecraft:zombie",
+            category="monster",
+            x=10.4,
+            y=63.6,
+            z=-2.2,
+            distance_sq=9.0,
+        ),
+        wait=True,
+    )
+
+    assert observed_calls == [(10, 64, -2)]
+    assert terminal["event"] == "task.completed"
+
+
+@pytest.mark.asyncio
+async def test_goto_entity_wait_false_calls_goto():
+    client = AsyncPyritoneClient(ws_url="ws://127.0.0.1:1/ws", token="token")
+    observed_calls: list[tuple[int, int, int]] = []
+
+    async def fake_goto(x: int, y: int, z: int, *extra_args: Any) -> dict[str, Any]:
+        assert extra_args == ()
+        observed_calls.append((x, y, z))
+        return {"accepted": True, "task_id": "goal-2"}
+
+    client.goto = fake_goto  # type: ignore[method-assign]
+
+    dispatch = await client.goto_entity(
+        {
+            "id": "entity-2",
+            "type_id": "minecraft:skeleton",
+            "category": "monster",
+            "x": 1.6,
+            "y": 64.2,
+            "z": 3.9,
+            "distance_sq": 16.0,
+        },
+        wait=False,
+    )
+
+    assert observed_calls == [(2, 64, 4)]
+    assert dispatch["accepted"] is True
+
+
+@pytest.mark.asyncio
+async def test_goto_entity_sets_execute_label_for_bridge_notice():
+    observed_execute_params: list[dict[str, Any]] = []
+
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "baritone.execute":
+                params = request.get("params")
+                observed_execute_params.append(params if isinstance(params, dict) else {})
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "accepted": True,
+                                "task": {"task_id": "goto-task"},
+                            },
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        await client.goto_entity(
+            VisibleEntity(
+                id="entity-3",
+                type_id="minecraft:creeper",
+                category="monster",
+                x=7.6,
+                y=64.4,
+                z=-2.2,
+                distance_sq=20.0,
+            ),
+            wait=False,
+        )
+        assert observed_execute_params == [
+            {
+                "command": "goto 8 64 -2",
+                "label": "goto_entity minecraft:creeper id=entity-3",
+            }
+        ]
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_goto_entity_label_normalizes_non_namespaced_type_id():
+    observed_execute_params: list[dict[str, Any]] = []
+
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "baritone.execute":
+                params = request.get("params")
+                observed_execute_params.append(params if isinstance(params, dict) else {})
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "accepted": True,
+                                "task": {"task_id": "goto-task"},
+                            },
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        await client.goto_entity(
+            {
+                "id": "entity-raw",
+                "type_id": "zombie",
+                "category": "monster",
+                "x": 1.0,
+                "y": 64.0,
+                "z": 1.0,
+                "distance_sq": 2.0,
+            },
+            wait=False,
+        )
+        assert observed_execute_params == [
+            {
+                "command": "goto 1 64 1",
+                "label": "goto_entity minecraft:zombie id=entity-raw",
+            }
+        ]
     finally:
         await client.close()
         server.close()

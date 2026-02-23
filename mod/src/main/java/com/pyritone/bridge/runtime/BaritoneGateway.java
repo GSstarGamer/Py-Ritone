@@ -62,9 +62,9 @@ public final class BaritoneGateway {
         }, false);
     }
 
-    public void tickRegisterPyritoneHashCommand(Runnable cancelAction) {
+    public void tickRegisterPyritoneHashCommand(Runnable endAction) {
         onClientThread(() -> {
-            ensurePyritoneHashCommandOnClientThread(cancelAction);
+            ensurePyritoneHashCommandOnClientThread(endAction);
             return true;
         }, false);
     }
@@ -151,8 +151,8 @@ public final class BaritoneGateway {
         }
     }
 
-    private void ensurePyritoneHashCommandOnClientThread(Runnable cancelAction) {
-        if (cancelAction == null) {
+    private void ensurePyritoneHashCommandOnClientThread(Runnable endAction) {
+        if (endAction == null) {
             return;
         }
 
@@ -181,7 +181,7 @@ public final class BaritoneGateway {
 
             ClassLoader loader = getClass().getClassLoader();
             Class<?> iCommand = Class.forName("baritone.api.command.ICommand", true, loader);
-            InvocationHandler handler = (proxy, method, args) -> handlePyritoneCommandCall(proxy, method, args, cancelAction);
+            InvocationHandler handler = (proxy, method, args) -> handlePyritoneCommandCall(proxy, method, args, endAction);
             Object commandProxy = Proxy.newProxyInstance(loader, new Class<?>[]{iCommand}, handler);
 
             Object registered = invoke(registry, "register", new Class<?>[]{Object.class}, new Object[]{commandProxy});
@@ -395,22 +395,22 @@ public final class BaritoneGateway {
         return defaultValue(method.getReturnType());
     }
 
-    private Object handlePyritoneCommandCall(Object proxy, Method method, Object[] args, Runnable cancelAction) {
+    private Object handlePyritoneCommandCall(Object proxy, Method method, Object[] args, Runnable endAction) {
         String methodName = method.getName();
         switch (methodName) {
             case "execute" -> {
                 String subcommand = extractFirstArg(args);
-                if ("cancel".equals(subcommand)) {
-                    cancelAction.run();
+                if ("end".equals(subcommand)) {
+                    endAction.run();
                 }
                 return null;
             }
             case "tabComplete" -> {
                 String prefix = extractFirstArg(args);
                 if (prefix.isBlank()) {
-                    return Stream.of("cancel");
+                    return Stream.of("end");
                 }
-                return Stream.of("cancel").filter(option -> option.startsWith(prefix));
+                return Stream.of("end").filter(option -> option.startsWith(prefix));
             }
             case "getShortDesc" -> {
                 return "Py-Ritone controls";
@@ -418,7 +418,7 @@ public final class BaritoneGateway {
             case "getLongDesc" -> {
                 return List.of(
                     "Py-Ritone command bridge",
-                    "Usage: #pyritone cancel"
+                    "Usage: #pyritone end"
                 );
             }
             case "getNames" -> {

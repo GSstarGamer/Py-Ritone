@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from ._identifiers import EntityId
 
+GROUP_PLAYERS = "group:players"
+GROUP_MOBS = "group:mobs"
+
 _NAMES = (
     "ACACIA_BOAT",
     "ACACIA_CHEST_BOAT",
@@ -168,6 +171,8 @@ BY_NAME: dict[str, EntityId] = {name: globals()[name] for name in _NAMES}
 __all__ = [
     "BY_NAME",
     "EntityId",
+    "GROUP_PLAYERS",
+    "GROUP_MOBS",
     "VALUES",
     "from_id",
     *_NAMES,

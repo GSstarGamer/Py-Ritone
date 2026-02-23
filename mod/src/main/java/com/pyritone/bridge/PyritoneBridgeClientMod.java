@@ -1,6 +1,7 @@
 package com.pyritone.bridge;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.pyritone.bridge.command.PyritoneCommand;
 import com.pyritone.bridge.config.BridgeConfig;
@@ -9,6 +10,7 @@ import com.pyritone.bridge.config.TokenManager;
 import com.pyritone.bridge.net.ProtocolCodec;
 import com.pyritone.bridge.net.WebSocketBridgeServer;
 import com.pyritone.bridge.runtime.BaritoneGateway;
+import com.pyritone.bridge.runtime.EntityTypeSelector;
 import com.pyritone.bridge.runtime.StatusSubscriptionRegistry;
 import com.pyritone.bridge.runtime.TaskRegistry;
 import com.pyritone.bridge.runtime.TaskLifecycleResolver;
@@ -22,6 +24,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -35,7 +39,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
@@ -76,7 +83,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             baritoneGateway.tickRegisterPathListener();
-            baritoneGateway.tickRegisterPyritoneHashCommand(this::forceCancelActiveTaskFromPyritoneCommand);
+            baritoneGateway.tickRegisterPyritoneHashCommand(() -> endPythonSessionsFromPyritoneCommand());
             baritoneGateway.tickApplyPyritoneChatBranding();
             tickTaskLifecycle();
             tickStatusStreams();
@@ -132,8 +139,8 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         }
     }
     private boolean handleOutgoingChat(String message) {
-        if (message != null && message.trim().equalsIgnoreCase("#pyritone cancel")) {
-            forceCancelActiveTaskFromPyritoneCommand();
+        if (message != null && message.trim().equalsIgnoreCase("#pyritone end")) {
+            endPythonSessionsFromPyritoneCommand();
             return false;
         }
         emitWatchMatches("chat", message);
@@ -216,6 +223,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
                 case "api.metadata.get" -> handleApiMetadataGet(id, params, session);
                 case "api.construct" -> handleApiConstruct(id, params, session);
                 case "api.invoke" -> handleApiInvoke(id, params, session);
+                case "entities.list" -> handleEntitiesList(id, params);
                 case "baritone.execute" -> handleBaritoneExecute(id, params);
                 case "task.cancel" -> handleTaskCancel(id);
                 default -> ProtocolCodec.errorResponse(id, "METHOD_NOT_FOUND", "Unknown method: " + method);
@@ -304,6 +312,62 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         return handleTypedApiRequest(id, () -> typedApiService.invoke(session.sessionId(), params));
     }
 
+    private JsonObject handleEntitiesList(String id, JsonObject params) {
+        try {
+            JsonObject result = runOnClientThread(() -> {
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client == null || client.world == null || client.player == null) {
+                    throw new TypedApiException("NOT_IN_WORLD", "Join a world before listing entities");
+                }
+
+                EntityTypeSelector selector = EntityTypeSelector.fromParams(params);
+
+                List<JsonObject> entities = new ArrayList<>();
+                for (Entity entity : client.world.getEntities()) {
+                    if (entity == client.player) {
+                        continue;
+                    }
+
+                    String typeId = Registries.ENTITY_TYPE.getId(entity.getType()).toString();
+                    if (!selector.matches(entity, typeId)) {
+                        continue;
+                    }
+
+                    JsonObject payload = new JsonObject();
+                    payload.addProperty("id", entity.getUuidAsString());
+                    payload.addProperty("type_id", typeId);
+                    payload.addProperty("category", entity.getType().getSpawnGroup().name().toLowerCase(Locale.ROOT));
+                    payload.addProperty("x", entity.getX());
+                    payload.addProperty("y", entity.getY());
+                    payload.addProperty("z", entity.getZ());
+                    payload.addProperty("distance_sq", client.player.squaredDistanceTo(entity));
+                    entities.add(payload);
+                }
+
+                entities.sort(Comparator.comparingDouble(entity -> entity.get("distance_sq").getAsDouble()));
+
+                JsonArray entries = new JsonArray();
+                for (JsonObject entity : entities) {
+                    entries.add(entity);
+                }
+
+                JsonObject response = new JsonObject();
+                response.add("entities", entries);
+                return response;
+            });
+            return ProtocolCodec.successResponse(id, result);
+        } catch (IllegalArgumentException exception) {
+            return ProtocolCodec.errorResponse(id, "BAD_REQUEST", exception.getMessage());
+        } catch (TypedApiException exception) {
+            return ProtocolCodec.errorResponse(id, exception.code(), exception.getMessage(), exception.details());
+        } catch (TimeoutException exception) {
+            return ProtocolCodec.errorResponse(id, "INTERNAL_ERROR", "Timed out waiting for client thread");
+        } catch (Exception exception) {
+            LOGGER.debug("entities.list request failed", exception);
+            return ProtocolCodec.errorResponse(id, "INTERNAL_ERROR", "Unable to list entities");
+        }
+    }
+
     private JsonObject buildStatusPayload(WebSocketBridgeServer.ClientSession session) {
         JsonObject result = new JsonObject();
         result.addProperty("protocol_version", BridgeConfig.PROTOCOL_VERSION);
@@ -328,7 +392,9 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             return ProtocolCodec.errorResponse(id, "BAD_REQUEST", "Missing command");
         }
 
-        emitPyritoneNotice("Python execute: " + compactCommand(command));
+        String label = asString(params, "label");
+        String notice = label != null && !label.isBlank() ? label : command;
+        emitPyritoneNotice("Python execute: " + compactCommand(notice));
 
         if (!baritoneGateway.isAvailable()) {
             emitPyritoneNotice("Python execute blocked: Baritone unavailable");
@@ -445,6 +511,31 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
     private Object resolvePrimaryBaritone() throws ReflectiveOperationException {
         return baritoneGateway.resolvePrimaryBaritoneForTypedApi();
+    }
+
+    public int endPythonSessionsFromPyritoneCommand() {
+        WebSocketBridgeServer currentServer = this.server;
+        if (currentServer == null || !currentServer.isRunning()) {
+            emitPyritoneNotice("Bridge is not running");
+            return 0;
+        }
+
+        int disconnected = 0;
+        for (WebSocketBridgeServer.ClientSession session : currentServer.sessionSnapshot()) {
+            if (!session.isAuthenticated()) {
+                continue;
+            }
+            session.close();
+            disconnected += 1;
+        }
+
+        if (disconnected > 0) {
+            emitPyritoneNotice("Ended " + disconnected + " Python websocket session(s)");
+        } else {
+            emitPyritoneNotice("No authenticated Python websocket sessions");
+        }
+
+        return disconnected;
     }
 
     public boolean forceCancelActiveTaskFromPyritoneCommand() {
