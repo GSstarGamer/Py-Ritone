@@ -45,17 +45,17 @@ cd python
 python demos/01_connect_discovery.py
 ```
 
-- Suggested recording set includes:
-  - connect/discovery
-  - basic commands
-  - goto + completion
-  - live event feed
-  - cancel flow
-  - settings mode switch
-  - interactive mini console
-  - async workflow
-  - local-path build helper
-  - CLI entrypoints
+- Suggested recording set (explicit):
+  - `01` connect/discovery: `python demos/01_connect_discovery.py`
+  - `02` basic commands: `python demos/02_basic_commands.py`
+  - `03` goto + completion: `python demos/03_goto_completion.py 100 70 100`
+  - `04` live event feed: `python demos/04_live_event_feed.py --x 0 --y 1000 --z 0 --max-events 30`
+  - `05` cancel flow: `python demos/05_cancel_task.py --delay 1.5`
+  - `06` settings mode switch: `python demos/06_settings_mode_switch.py --mode builder`
+  - `07` mini console: `python demos/07_mini_console.py`
+  - `08` async workflow: `python demos/08_async_workflow.py 0 1000 0 --cancel-after 6 --heartbeat-interval 1.5`
+  - `09` local-path build helper: `python demos/09_build_file_local_path.py "house.schem" --coords 100 -60 100 --wait`
+  - `10` CLI entrypoints: `python demos/10_cli_entrypoints.py`
 
 ## One-Click Dev Client
 
