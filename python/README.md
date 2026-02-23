@@ -72,7 +72,7 @@ python demos/01_connect_discovery.py
   - `AsyncPyritoneClient`
   - `PyritoneClient` and `AsyncPyritoneClient` are temporary async aliases of `Client`.
 - Low-level methods:
-  - `ping`, `status_get`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
+  - `ping`, `status_get`, `status_subscribe`, `status_unsubscribe`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
 - Command wrappers:
   - All top-level Baritone commands exposed as methods.
 - Local schematic helpers:
@@ -80,6 +80,8 @@ python demos/01_connect_discovery.py
   - `build_file_wait(path, *coords, base_dir=None)`
 - Settings namespace:
   - `await client.settings.allowPlace.set(True)`
+- State/task cache:
+  - `client.state.snapshot`, `client.task.id`, `client.task.state`, `await client.task.wait()`
 
 ## Auto-Discovery (Zero-Setup)
 

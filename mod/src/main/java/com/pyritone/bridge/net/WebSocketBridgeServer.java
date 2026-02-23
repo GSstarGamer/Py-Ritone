@@ -11,6 +11,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -103,6 +104,23 @@ public final class WebSocketBridgeServer implements Closeable {
             }
             session.send(event);
         }
+    }
+
+    public void publishEvent(ClientSession session, JsonObject event) {
+        if (session == null || event == null) {
+            return;
+        }
+        if (!session.isAuthenticated()) {
+            return;
+        }
+        if (!sessions.contains(session)) {
+            return;
+        }
+        session.send(event);
+    }
+
+    public Set<ClientSession> sessionSnapshot() {
+        return new HashSet<>(sessions);
     }
 
     @Override

@@ -45,6 +45,8 @@
 - `auth.login {token}`
 - `ping {}`
 - `status.get {}`
+- `status.subscribe {}`
+- `status.unsubscribe {}`
 - `baritone.execute {command}`
 - `task.cancel {task_id?}`
 
@@ -59,6 +61,13 @@
 - `task.canceled`
 - `baritone.path_event`
 - `chat.match` (optional watch pattern signal)
+- `status.update`
+
+### Status update payload (`status.update`)
+
+- `data.reason`: `change` or `heartbeat`
+- `data.seq`: session-local increasing sequence for status updates
+- `data.status`: same shape as `status.get` result
 
 ### Pause event payload (`task.paused`)
 
@@ -86,4 +95,3 @@
 - `BARITONE_UNAVAILABLE`
 - `EXECUTION_FAILED`
 - `INTERNAL_ERROR`
-

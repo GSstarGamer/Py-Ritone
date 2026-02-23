@@ -10,6 +10,7 @@ public final class BridgeConfig {
     public static final int DEFAULT_PORT = 27841;
     public static final String DEFAULT_WS_PATH = "/ws";
     public static final int PROTOCOL_VERSION = 2;
+    public static final long STATUS_HEARTBEAT_INTERVAL_MS = 5_000L;
     public static final String TOKEN_FILE_NAME = "token.txt";
     public static final String BRIDGE_INFO_FILE_NAME = "bridge-info.json";
 

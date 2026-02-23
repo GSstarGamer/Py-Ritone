@@ -9,6 +9,7 @@ import com.pyritone.bridge.config.TokenManager;
 import com.pyritone.bridge.net.ProtocolCodec;
 import com.pyritone.bridge.net.WebSocketBridgeServer;
 import com.pyritone.bridge.runtime.BaritoneGateway;
+import com.pyritone.bridge.runtime.StatusSubscriptionRegistry;
 import com.pyritone.bridge.runtime.TaskRegistry;
 import com.pyritone.bridge.runtime.TaskLifecycleResolver;
 import com.pyritone.bridge.runtime.TaskSnapshot;
@@ -34,6 +35,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger(BridgeConfig.MOD_ID);
@@ -44,6 +46,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private final TaskRegistry taskRegistry = new TaskRegistry();
     private final TaskLifecycleResolver taskLifecycleResolver = new TaskLifecycleResolver();
     private final WatchPatternRegistry watchPatternRegistry = new WatchPatternRegistry();
+    private final StatusSubscriptionRegistry statusSubscriptionRegistry = new StatusSubscriptionRegistry();
 
     private BaritoneGateway baritoneGateway;
     private WebSocketBridgeServer server;
@@ -67,6 +70,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             baritoneGateway.tickRegisterPyritoneHashCommand(this::forceCancelActiveTaskFromPyritoneCommand);
             baritoneGateway.tickApplyPyritoneChatBranding();
             tickTaskLifecycle();
+            tickStatusStreams();
         });
         ClientSendMessageEvents.ALLOW_CHAT.register(this::handleOutgoingChat);
         ClientSendMessageEvents.ALLOW_COMMAND.register(this::handleOutgoingCommand);
@@ -169,6 +173,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     }
 
     private void shutdownBridgeServer() {
+        statusSubscriptionRegistry.clear();
         if (this.server != null) {
             this.server.close();
         }
@@ -196,6 +201,8 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
                 case "auth.login" -> handleAuthLogin(id, params, session);
                 case "ping" -> handlePing(id, session);
                 case "status.get" -> handleStatus(id, session);
+                case "status.subscribe" -> handleStatusSubscribe(id, session);
+                case "status.unsubscribe" -> handleStatusUnsubscribe(id, session);
                 case "baritone.execute" -> handleBaritoneExecute(id, params);
                 case "task.cancel" -> handleTaskCancel(id);
                 default -> ProtocolCodec.errorResponse(id, "METHOD_NOT_FOUND", "Unknown method: " + method);
@@ -249,17 +256,45 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     }
 
     private JsonObject handleStatus(String id, WebSocketBridgeServer.ClientSession session) {
+        return ProtocolCodec.successResponse(id, buildStatusPayload(session));
+    }
+
+    private JsonObject handleStatusSubscribe(String id, WebSocketBridgeServer.ClientSession session) {
+        long nowMs = System.currentTimeMillis();
+        JsonObject status = buildStatusPayload(session);
+        statusSubscriptionRegistry.subscribe(session.sessionId(), statusDigest(status), nowMs);
+
+        JsonObject result = new JsonObject();
+        result.addProperty("subscribed", true);
+        result.addProperty("heartbeat_interval_ms", BridgeConfig.STATUS_HEARTBEAT_INTERVAL_MS);
+        result.add("status", status);
+        return ProtocolCodec.successResponse(id, result);
+    }
+
+    private JsonObject handleStatusUnsubscribe(String id, WebSocketBridgeServer.ClientSession session) {
+        boolean wasSubscribed = statusSubscriptionRegistry.unsubscribe(session.sessionId());
+        JsonObject result = new JsonObject();
+        result.addProperty("subscribed", false);
+        result.addProperty("was_subscribed", wasSubscribed);
+        return ProtocolCodec.successResponse(id, result);
+    }
+
+    private JsonObject buildStatusPayload(WebSocketBridgeServer.ClientSession session) {
         JsonObject result = new JsonObject();
         result.addProperty("protocol_version", BridgeConfig.PROTOCOL_VERSION);
         result.addProperty("server_version", serverVersion);
         result.addProperty("host", BridgeConfig.DEFAULT_HOST);
         result.addProperty("port", server != null ? server.getBoundPort() : BridgeConfig.DEFAULT_PORT);
-        result.addProperty("authenticated", session.isAuthenticated());
+        result.addProperty("authenticated", session != null && session.isAuthenticated());
         result.addProperty("baritone_available", baritoneGateway.isAvailable());
         result.addProperty("in_world", baritoneGateway.isInWorld());
         result.add("active_task", taskRegistry.activeAsJson());
         result.add("watch_patterns", watchPatternRegistry.toJsonArray());
-        return ProtocolCodec.successResponse(id, result);
+        return result;
+    }
+
+    private static String statusDigest(JsonObject status) {
+        return ProtocolCodec.toLine(status);
     }
 
     private JsonObject handleBaritoneExecute(String id, JsonObject params) {
@@ -415,6 +450,56 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
                     .ifPresent(snapshot -> emitTaskEvent(decision.eventName(), snapshot, decision.stage()));
             }
         }
+    }
+
+    private void tickStatusStreams() {
+        WebSocketBridgeServer currentServer = this.server;
+        if (currentServer == null || !currentServer.isRunning()) {
+            statusSubscriptionRegistry.clear();
+            return;
+        }
+
+        Set<WebSocketBridgeServer.ClientSession> sessions = currentServer.sessionSnapshot();
+        if (sessions.isEmpty()) {
+            statusSubscriptionRegistry.clear();
+            return;
+        }
+
+        Set<String> activeSessionIds = sessions.stream().map(WebSocketBridgeServer.ClientSession::sessionId).collect(java.util.stream.Collectors.toSet());
+        statusSubscriptionRegistry.retainSessions(activeSessionIds);
+
+        long nowMs = System.currentTimeMillis();
+        for (WebSocketBridgeServer.ClientSession session : sessions) {
+            if (!session.isAuthenticated()) {
+                continue;
+            }
+
+            JsonObject status = buildStatusPayload(session);
+            Optional<StatusSubscriptionRegistry.Emission> emission = statusSubscriptionRegistry.evaluate(
+                session.sessionId(),
+                statusDigest(status),
+                nowMs,
+                BridgeConfig.STATUS_HEARTBEAT_INTERVAL_MS
+            );
+            if (emission.isEmpty()) {
+                continue;
+            }
+
+            publishStatusEvent(currentServer, session, status, emission.orElseThrow());
+        }
+    }
+
+    private void publishStatusEvent(
+        WebSocketBridgeServer currentServer,
+        WebSocketBridgeServer.ClientSession session,
+        JsonObject status,
+        StatusSubscriptionRegistry.Emission emission
+    ) {
+        JsonObject data = new JsonObject();
+        data.addProperty("reason", emission.reason());
+        data.addProperty("seq", emission.sequence());
+        data.add("status", status);
+        currentServer.publishEvent(session, ProtocolCodec.eventEnvelope("status.update", data));
     }
 
     private void handlePausedUpdate(TaskSnapshot current, TaskLifecycleResolver.PauseStatus pauseStatus) {

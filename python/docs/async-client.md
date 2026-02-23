@@ -20,6 +20,7 @@ async def main() -> None:
     try:
         print(await client.ping())
         print(await client.status_get())
+        await client.status_subscribe()
 
         dispatch = await client.build_file("schematics/base.schem", 100, 70, 100)
         print(dispatch)
@@ -31,6 +32,10 @@ async def main() -> None:
 
         # Convenience helper that dispatches + waits in one call
         print(await client.build_file_wait("schematics/base.schem", 100, 70, 100))
+
+        # Cached state/task surfaces
+        print(client.state.snapshot)
+        print(client.task.id, client.task.state)
     finally:
         await client.close()
 
@@ -44,6 +49,8 @@ asyncio.run(main())
 Async low-level methods return awaitable dict[str, Any] payloads.
 Command wrappers return awaitable CommandDispatchResult.
 events()/next_event() return event envelope dictionaries.
+client.state caches the latest known status payload.
+client.task exposes active-task convenience accessors.
 
 Build helpers:
 - await build_file(...) -> CommandDispatchResult

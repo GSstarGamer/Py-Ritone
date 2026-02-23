@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -508,6 +509,265 @@ async def test_goto_wait_raises_when_task_id_is_missing():
 
 
 @pytest.mark.asyncio
+async def test_status_subscribe_and_unsubscribe_updates_state_cache():
+    observed_methods: list[str] = []
+
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "status.subscribe":
+                observed_methods.append(method)
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "subscribed": True,
+                                "heartbeat_interval_ms": 5000,
+                                "status": {
+                                    "authenticated": True,
+                                    "baritone_available": True,
+                                    "in_world": False,
+                                    "active_task": None,
+                                },
+                            },
+                        }
+                    )
+                )
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "event",
+                            "event": "status.update",
+                            "data": {
+                                "reason": "heartbeat",
+                                "status": {
+                                    "authenticated": True,
+                                    "baritone_available": True,
+                                    "in_world": True,
+                                    "active_task": {
+                                        "task_id": "task-1",
+                                        "state": "RUNNING",
+                                        "detail": "working",
+                                    },
+                                },
+                            },
+                            "ts": "2026-01-01T00:00:03Z",
+                        }
+                    )
+                )
+                continue
+
+            if method == "status.unsubscribe":
+                observed_methods.append(method)
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"subscribed": False, "was_subscribed": True},
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+
+        subscribed = await client.status_subscribe()
+        assert subscribed["subscribed"] is True
+        assert subscribed["status"]["in_world"] is False
+
+        heartbeat_event = await client.wait_for("status.update", timeout=1.0)
+        assert heartbeat_event["data"]["reason"] == "heartbeat"
+        assert client.state.snapshot["in_world"] is True
+        assert client.task.id == "task-1"
+        assert client.task.state == "RUNNING"
+
+        unsubscribed = await client.status_unsubscribe()
+        assert unsubscribed["subscribed"] is False
+        assert observed_methods == ["status.subscribe", "status.unsubscribe"]
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_task_wait_uses_cached_state_task_id_and_clears_on_terminal():
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "event",
+                            "event": "task.progress",
+                            "data": {
+                                "task_id": "task-9",
+                                "state": "RUNNING",
+                                "detail": "going",
+                            },
+                            "ts": "2026-01-01T00:00:00Z",
+                        }
+                    )
+                )
+
+                async def send_terminal() -> None:
+                    await asyncio.sleep(0.05)
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "event",
+                                "event": "task.completed",
+                                "data": {
+                                    "task_id": "task-9",
+                                    "state": "COMPLETED",
+                                    "detail": "done",
+                                },
+                                "ts": "2026-01-01T00:00:01Z",
+                            }
+                        )
+                    )
+
+                asyncio.create_task(send_terminal())
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        progress = await client.wait_for("task.progress", timeout=1.0)
+        assert progress["data"]["task_id"] == "task-9"
+        assert client.task.id == "task-9"
+
+        terminal = await client.task.wait(timeout=1.0)
+        assert terminal["event"] == "task.completed"
+        assert client.task.id is None
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_task_wait_raises_when_no_active_task_is_available():
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "status.get":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "authenticated": True,
+                                "baritone_available": True,
+                                "in_world": True,
+                                "active_task": None,
+                            },
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        with pytest.raises(BridgeError) as error:
+            await client.task.wait(timeout=0.2)
+        assert error.value.code == "NO_ACTIVE_TASK"
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
 async def test_wait_for_timeout():
     async def handler(websocket: ServerConnection):
         async for message in websocket:
@@ -534,4 +794,3 @@ async def test_wait_for_timeout():
         await client.close()
         server.close()
         await server.wait_closed()
-

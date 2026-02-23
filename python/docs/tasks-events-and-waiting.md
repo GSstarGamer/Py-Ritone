@@ -6,6 +6,7 @@ How to handle dispatch, task IDs, and terminal task events.
 
 - You need completion/failure state, not just dispatch success.
 - You want to consume bridge events (`task.*`, `baritone.path_event`, etc.).
+- You want cached status snapshots via `client.state` and `status.update`.
 
 ### Example
 
@@ -63,3 +64,4 @@ Non-terminal update events for the same task_id:
 
 - `async-client.md`
 - `commands/navigation.md`
+- `status_subscribe` / `status_unsubscribe`

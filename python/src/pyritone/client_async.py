@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import contextlib
 import inspect
 import json
@@ -36,6 +37,136 @@ class _EventWaiter:
     event_name: str
     check: EventCheck | None
     future: asyncio.Future[EventPayload]
+
+
+class ClientStateCache:
+    def __init__(self) -> None:
+        self._status: dict[str, Any] = {}
+        self._updated_at: str | None = None
+
+    @property
+    def updated_at(self) -> str | None:
+        return self._updated_at
+
+    @property
+    def snapshot(self) -> dict[str, Any]:
+        return copy.deepcopy(self._status)
+
+    @property
+    def active_task(self) -> dict[str, Any] | None:
+        value = self._status.get("active_task")
+        if isinstance(value, dict):
+            return copy.deepcopy(value)
+        return None
+
+    @property
+    def task_id(self) -> str | None:
+        task = self._status.get("active_task")
+        if not isinstance(task, dict):
+            return None
+
+        task_id = task.get("task_id")
+        if isinstance(task_id, str) and task_id:
+            return task_id
+        return None
+
+    @property
+    def task_state(self) -> str | None:
+        task = self._status.get("active_task")
+        if not isinstance(task, dict):
+            return None
+
+        state = task.get("state")
+        if isinstance(state, str) and state:
+            return state
+        return None
+
+    @property
+    def task_detail(self) -> str | None:
+        task = self._status.get("active_task")
+        if not isinstance(task, dict):
+            return None
+
+        detail = task.get("detail")
+        if isinstance(detail, str):
+            return detail
+        return None
+
+    def _clear(self) -> None:
+        self._status = {}
+        self._updated_at = None
+
+    def _replace(self, status: dict[str, Any], *, ts: str | None = None) -> None:
+        self._status = copy.deepcopy(status)
+        self._updated_at = ts
+
+    def _merge_active_task(self, task_payload: dict[str, Any], *, ts: str | None = None) -> None:
+        next_status = dict(self._status)
+        next_status["active_task"] = copy.deepcopy(task_payload)
+        self._status = next_status
+        self._updated_at = ts
+
+    def _clear_active_task(self, task_id: str | None, *, ts: str | None = None) -> None:
+        current = self._status.get("active_task")
+        if not isinstance(current, dict):
+            return
+        if task_id is not None and current.get("task_id") != task_id:
+            return
+
+        next_status = dict(self._status)
+        next_status["active_task"] = None
+        self._status = next_status
+        self._updated_at = ts
+
+
+class _TaskNamespace:
+    def __init__(self, client: "Client") -> None:
+        self._client = client
+
+    @property
+    def id(self) -> str | None:
+        return self._client.state.task_id
+
+    @property
+    def state(self) -> str | None:
+        return self._client.state.task_state
+
+    @property
+    def detail(self) -> str | None:
+        return self._client.state.task_detail
+
+    @property
+    def data(self) -> dict[str, Any] | None:
+        return self._client.state.active_task
+
+    async def wait(
+        self,
+        task_id: str | None = None,
+        *,
+        on_update: Callable[[dict[str, Any]], Any] | None = None,
+        timeout: float | None = None,
+    ) -> EventPayload:
+        resolved_task_id = task_id or self.id
+        if resolved_task_id is None:
+            latest_status = await self._client.status_get()
+            active_task = latest_status.get("active_task")
+            if isinstance(active_task, dict):
+                candidate = active_task.get("task_id")
+                if isinstance(candidate, str) and candidate:
+                    resolved_task_id = candidate
+
+        if resolved_task_id is None:
+            raise BridgeError(
+                "NO_ACTIVE_TASK",
+                "No active task available in client state cache",
+                {"state": self._client.state.snapshot},
+            )
+
+        return await self._client.wait_for_task(
+            resolved_task_id,
+            on_update=on_update,
+            timeout=timeout,
+        )
 
 
 class Client(
@@ -78,6 +209,8 @@ class Client(
 
         self._logger = logging.getLogger("pyritone")
         self.settings = AsyncSettingsNamespace(self)
+        self.state = ClientStateCache()
+        self.task = _TaskNamespace(self)
 
     async def __aenter__(self) -> "Client":
         await self.connect()
@@ -93,6 +226,7 @@ class Client(
     async def connect(self) -> None:
         if not self._closed:
             return
+        self.state._clear()
 
         self._bridge_info = resolve_bridge_info(
             host=self._explicit_host,
@@ -148,6 +282,7 @@ class Client(
         self._fail_pending(ConnectionError("Client closed"))
         self._fail_waiters(ConnectionError("Client closed"))
         await self._cancel_listener_tasks()
+        self.state._clear()
 
     def on(self, event: str, callback: EventCallback) -> Callable[[], None]:
         normalized = event or self.ANY_EVENT
@@ -172,7 +307,20 @@ class Client(
         return await self._request("ping", {})
 
     async def status_get(self) -> dict[str, Any]:
-        return await self._request("status.get", {})
+        status = await self._request("status.get", {})
+        self.state._replace(status)
+        return status
+
+    async def status_subscribe(self) -> dict[str, Any]:
+        state_before = self.state.updated_at
+        result = await self._request("status.subscribe", {})
+        status = result.get("status")
+        if isinstance(status, dict) and self.state.updated_at == state_before:
+            self.state._replace(status)
+        return result
+
+    async def status_unsubscribe(self) -> dict[str, Any]:
+        return await self._request("status.unsubscribe", {})
 
     async def execute(self, command: str) -> dict[str, Any]:
         return await self._request("baritone.execute", {"command": command})
@@ -356,6 +504,7 @@ class Client(
                 self._fail_waiters(ConnectionError("Connection closed by bridge"))
 
     async def _dispatch_event(self, payload: EventPayload) -> None:
+        self._update_state_from_event(payload)
         await self._events.put(payload)
 
         event_name = payload.get("event")
@@ -392,6 +541,33 @@ class Client(
             waiter.future.set_result(payload)
             with contextlib.suppress(ValueError):
                 self._event_waiters.remove(waiter)
+
+    def _update_state_from_event(self, payload: EventPayload) -> None:
+        event_name = payload.get("event")
+        if not isinstance(event_name, str):
+            return
+
+        event_ts = payload.get("ts")
+        ts = event_ts if isinstance(event_ts, str) else None
+
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return
+
+        if event_name == "status.update":
+            status = data.get("status")
+            if isinstance(status, dict):
+                self.state._replace(status, ts=ts)
+            return
+
+        if event_name in {"task.started", "task.progress", "task.paused", "task.resumed"}:
+            self.state._merge_active_task(data, ts=ts)
+            return
+
+        if event_name in self.TERMINAL_TASK_EVENTS:
+            task_id = data.get("task_id")
+            if isinstance(task_id, str) and task_id:
+                self.state._clear_active_task(task_id, ts=ts)
 
     def _invoke_event_callback(self, callback: EventCallback, payload: EventPayload) -> None:
         try:
