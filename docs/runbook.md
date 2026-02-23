@@ -33,4 +33,4 @@ pyritone --host 127.0.0.1 --port 27841 --token <token> ping
 
 ## Not In World
 
-- Connect to any singleplayer or multiplayer world before running `baritone.execute`.
+- Connect to any singleplayer or multiplayer world before dispatching Baritone commands (wrapper methods or advanced `client.execute(...)`).

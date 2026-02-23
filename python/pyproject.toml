@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyritone"
-version = "0.1.2"
+version = "0.2.0"
 description = "Python client for the Py-Ritone Baritone bridge"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -68,6 +68,8 @@ python demos/01_connect_discovery.py
 
 - Async-only release checklist: `docs/release-checklist.md`
 - Parity/fallback debt snapshot: `python/docs/release-parity-fallback-report.md`
+- Release notes draft: `docs/release-notes-v0.2.0.md`
+- Changelog: `CHANGELOG.md`
 
 ## One-Click Dev Client
 

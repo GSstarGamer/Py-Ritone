@@ -32,14 +32,22 @@ Remaining intentional debt:
 - Sync command shim modules are still generated for compatibility surfaces.
 - Raw command transport (`baritone.execute`) is retained for command-wrapper interop and edge usage.
 
+## Tag Policy Decision (v0.2.0)
+
+- Keep compatibility aliases in public exports for `v0.2.x`:
+  - `PyritoneClient -> Client`
+  - `AsyncPyritoneClient -> Client`
+- Keep generated sync command shim modules for `v0.2.x`:
+  - `python/src/pyritone/commands/sync_*.py`
+- Treat both as soft-deprecated migration cushions and keep debt ceilings flat:
+  - alias assignments `<= 3`
+  - sync shim modules `<= 6`
+- Keep `client.execute(...)` public for advanced command interop and CLI usage, but position it as advanced-only in docs.
+- Prefer generated command wrappers and typed `client.baritone.*` APIs in user-facing examples.
+- Removal target for aliases + sync shims: no earlier than `v0.3.0`.
+
 ## Release Readiness Notes
 
 - Docs and demos now present `pyritone.Client` as the primary client.
 - Sync-labeled usage guides/examples were removed from user-facing docs.
 - Migration guidance is isolated in `python/docs/migration-from-legacy-aliases.md`.
-
-## Recommended Next Cleanup Before Major Release
-
-1. Remove compatibility aliases from public exports.
-2. Stop generating sync command shim modules.
-3. Re-evaluate whether `baritone.execute` should remain public or move to advanced-only guidance.

@@ -30,6 +30,14 @@ PyritoneClient and AsyncPyritoneClient are temporary compatibility aliases to Cl
 All client methods are async and must be awaited.
 ```
 
+### Compatibility window
+
+```text
+Release policy for v0.2.x keeps these aliases and generated sync command shims
+as soft-deprecated migration cushions.
+Planned removal target: no earlier than v0.3.0.
+```
+
 ### Common mistakes
 
 - Keeping old import names in new docs/examples.

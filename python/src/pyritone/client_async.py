@@ -369,6 +369,11 @@ class Client(
         return _decode_typed_value(result["value"])
 
     async def execute(self, command: str) -> dict[str, Any]:
+        """Execute raw Baritone command text.
+
+        Advanced escape hatch for command interop/CLI-style flows.
+        Prefer generated command wrappers or typed `client.baritone.*` APIs in new code.
+        """
         return await self._request("baritone.execute", {"command": command})
 
     async def cancel(self, task_id: str | None = None) -> dict[str, Any]:
@@ -757,5 +762,6 @@ def _decode_typed_value(value: Any) -> Any:
     return value
 
 
+# Compatibility aliases retained for the v0.2.x migration window.
 AsyncPyritoneClient = Client
 PyritoneClient = Client

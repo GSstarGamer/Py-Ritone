@@ -74,6 +74,7 @@ python demos/01_connect_discovery.py
   - Legacy aliases (`PyritoneClient`, `AsyncPyritoneClient`) are compatibility-only; use `Client` in docs and new code.
 - Low-level methods:
   - `ping`, `status_get`, `status_subscribe`, `status_unsubscribe`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
+  - `execute(...)` is an advanced raw command path; prefer generated command wrappers and typed APIs in new code.
   - Typed API substrate: `api_metadata_get`, `api_construct`, `api_invoke`
 - Typed Baritone wrappers:
   - `client.baritone` root namespace over Wave 4 typed calls
@@ -101,6 +102,13 @@ python demos/01_connect_discovery.py
   - `client.state.snapshot`, `client.task.id`, `client.task.state`, `await client.task.wait()`
 - Typed remote references:
   - `RemoteRef(ref_id=..., java_type=...)` values returned by `api_construct` / `api_invoke`
+
+## Compatibility Policy (v0.2.x)
+
+- `PyritoneClient` and `AsyncPyritoneClient` remain exported as temporary compatibility aliases.
+- Generated sync command shim modules (`python/src/pyritone/commands/sync_*.py`) remain for migration cushioning.
+- Both compatibility surfaces are soft-deprecated and planned for removal no earlier than `v0.3.0`.
+- Keep new docs/examples on `Client` + async command/typed APIs; use raw `execute(...)` only for advanced/interop cases.
 
 ## Auto-Discovery (Zero-Setup)
 
