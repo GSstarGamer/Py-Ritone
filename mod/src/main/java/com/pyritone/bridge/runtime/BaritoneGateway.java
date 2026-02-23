@@ -114,10 +114,8 @@ public final class BaritoneGateway {
                 return new Outcome(true, "Canceled by pathing behavior");
             }
 
-            Object commandManager = invokeNoArgs(baritone, "getCommandManager");
-            Object stopResult = invoke(commandManager, "execute", new Class<?>[]{String.class}, new Object[]{"stop"});
-            boolean stopped = stopResult instanceof Boolean value && value;
-            return stopped ? new Outcome(true, "Canceled with stop command") : new Outcome(false, "Failed to cancel active task");
+            invokeNoArgs(pathingBehavior, "forceCancel");
+            return new Outcome(true, "Canceled by pathing behavior forceCancel");
         } catch (ReflectiveOperationException exception) {
             logger.debug("Baritone cancel call failed", exception);
             return new Outcome(false, exception.getMessage());
