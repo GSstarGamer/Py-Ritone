@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
@@ -1247,6 +1248,7 @@ class BaritoneNamespace:
 
     def __init__(self, client: "Client") -> None:
         self._client = client
+        self._logger = logging.getLogger("pyritone")
         self.goals = GoalFactory(self)
 
     async def _invoke_root(
@@ -1587,6 +1589,7 @@ class BaritoneNamespace:
 
         started = False
         behavior = await self.pathing_behavior()
+        last_transition: tuple[bool, bool] | None = None
 
         while True:
             if deadline is not None and loop.time() >= deadline:
@@ -1595,21 +1598,116 @@ class BaritoneNamespace:
             pathing = await behavior.is_pathing()
             calculating = (await behavior.in_progress()) is not None
             busy = pathing or calculating
+            transition = (pathing, calculating)
+            if transition != last_transition:
+                last_transition = transition
+                self._emit_typed_wait_transition(
+                    handle_id=handle_id,
+                    action=action,
+                    moving=pathing,
+                    calculating=calculating,
+                )
 
             if busy:
                 started = True
             elif started or loop.time() >= startup_deadline:
+                has_path = await behavior.has_path()
+                self._emit_typed_wait_best_path(
+                    handle_id=handle_id,
+                    action=action,
+                    has_path=has_path,
+                )
+                self._emit_typed_wait_complete(
+                    handle_id=handle_id,
+                    action=action,
+                    started=started,
+                    has_path=has_path,
+                )
                 return TypedTaskResult(
                     handle_id=handle_id,
                     action=action,
                     started=started,
                     pathing=False,
                     calculating=False,
-                    has_path=await behavior.has_path(),
+                    has_path=has_path,
                     goal=await behavior.goal(),
                 )
 
             await asyncio.sleep(poll_interval)
+
+    def _emit_typed_wait_transition(
+        self,
+        *,
+        handle_id: str,
+        action: str,
+        moving: bool,
+        calculating: bool,
+    ) -> None:
+        callback = getattr(self._client, "_log_typed_wait_transition", None)
+        if callable(callback):
+            callback(
+                handle_id=handle_id,
+                action=action,
+                moving=moving,
+                calculating=calculating,
+            )
+            return
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug(
+                "[Py-Ritone] State moving ( handle_id=%s, action=%s, moving=%s, calculating=%s )",
+                handle_id,
+                action,
+                moving,
+                calculating,
+            )
+
+    def _emit_typed_wait_best_path(
+        self,
+        *,
+        handle_id: str,
+        action: str,
+        has_path: bool,
+    ) -> None:
+        callback = getattr(self._client, "_log_typed_wait_best_path", None)
+        if callable(callback):
+            callback(
+                handle_id=handle_id,
+                action=action,
+                has_path=has_path,
+            )
+            return
+        if has_path and self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug(
+                "[Py-Ritone] State best_path_ready ( handle_id=%s, action=%s )",
+                handle_id,
+                action,
+            )
+
+    def _emit_typed_wait_complete(
+        self,
+        *,
+        handle_id: str,
+        action: str,
+        started: bool,
+        has_path: bool,
+    ) -> None:
+        callback = getattr(self._client, "_log_typed_wait_complete", None)
+        if callable(callback):
+            callback(
+                handle_id=handle_id,
+                action=action,
+                started=started,
+                has_path=has_path,
+            )
+            return
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug(
+                "[Py-Ritone] State working ( handle_id=%s, action=%s, started=%s, moving=false, calculating=false, has_path=%s )",
+                handle_id,
+                action,
+                started,
+                has_path,
+            )
 
 
 __all__ = [

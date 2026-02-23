@@ -39,6 +39,8 @@
   - `auth.login`
   - `ping`
 - All other methods return `UNAUTHORIZED` until session auth succeeds.
+- Only one authenticated Python session is allowed at a time per Minecraft client.
+  - Additional `auth.login` attempts are rejected with `UNAUTHORIZED` while another authenticated session is active.
 
 ## Methods
 
@@ -93,6 +95,7 @@ Behavior notes:
 - `task.failed`
 - `task.canceled`
 - `baritone.path_event`
+- `bridge.pause_state`
 - `chat.match` (optional watch pattern signal)
 - `status.update`
 
@@ -126,6 +129,18 @@ Behavior notes:
 - `data.pause.source_process`
 - `data.pause.command_type`
 
+### Bridge pause-state payload (`bridge.pause_state`)
+
+- `data.paused`: whether the bridge currently rejects Java-bound methods with `PAUSED`.
+- `data.operator_paused`: `true` while `#pyritone pause` / `/pyritone pause` is active.
+- `data.game_paused`: `true` while Minecraft reports game pause state.
+- `data.reason`: one of:
+  - `operator_pause`
+  - `game_pause`
+  - `operator_and_game_pause`
+  - `resumed`
+- `data.seq`: monotonic bridge pause-state transition sequence.
+
 ### Task terminal timing
 
 - `task.completed`, `task.failed`, and `task.canceled` are emitted only after stable terminal resolution.
@@ -137,11 +152,30 @@ Behavior notes:
 - `#pyritone end` (Baritone hash command) and `/pyritone end` (Fabric command) force-close authenticated Python websocket sessions.
 - This is an operator stop control and is independent from `task.cancel`.
 
+### Operator pause/resume command semantics
+
+- `#pyritone pause` and `/pyritone pause` enable operator pause.
+- `#pyritone resume` and `/pyritone resume` clear operator pause.
+- Effective pause state is `operator_paused || game_paused`.
+- On each pause/resume transition, bridge publishes `bridge.pause_state`.
+- While paused:
+  - Java-bound methods return immediate error `PAUSED` with pause snapshot in `error.data`.
+  - Gated methods:
+    - `status.get`, `status.subscribe`, `status.unsubscribe`
+    - `entities.list`
+    - `api.metadata.get`, `api.construct`, `api.invoke`
+    - `baritone.execute`
+    - `task.cancel`
+  - Non-gated methods remain available:
+    - `auth.login`
+    - `ping`
+
 ## Error Codes
 
 - `UNAUTHORIZED`
 - `BAD_REQUEST`
 - `METHOD_NOT_FOUND`
+- `PAUSED`
 - `NOT_IN_WORLD`
 - `BARITONE_UNAVAILABLE`
 - `EXECUTION_FAILED`

@@ -53,6 +53,17 @@ import java.util.concurrent.Callable;
 
 public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger(BridgeConfig.MOD_ID);
+    private static final Set<String> PAUSE_GATED_METHODS = Set.of(
+        "status.get",
+        "status.subscribe",
+        "status.unsubscribe",
+        "entities.list",
+        "api.metadata.get",
+        "api.construct",
+        "api.invoke",
+        "baritone.execute",
+        "task.cancel"
+    );
 
     private String token;
     private String serverVersion;
@@ -62,6 +73,12 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private final WatchPatternRegistry watchPatternRegistry = new WatchPatternRegistry();
     private final StatusSubscriptionRegistry statusSubscriptionRegistry = new StatusSubscriptionRegistry();
     private final TypedApiService typedApiService = new TypedApiService(PyritoneBridgeClientMod.class.getClassLoader());
+
+    private final Object pauseStateLock = new Object();
+    private volatile boolean operatorPauseActive;
+    private volatile boolean gamePauseActive;
+    private volatile boolean effectivePauseActive;
+    private volatile long pauseStateSeq;
 
     private BaritoneGateway baritoneGateway;
     private WebSocketBridgeServer server;
@@ -83,8 +100,13 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             baritoneGateway.tickRegisterPathListener();
-            baritoneGateway.tickRegisterPyritoneHashCommand(() -> endPythonSessionsFromPyritoneCommand());
+            baritoneGateway.tickRegisterPyritoneHashCommand(
+                () -> endPythonSessionsFromPyritoneCommand(),
+                () -> pausePythonExecuteFromPyritoneCommand(),
+                () -> resumePythonExecuteFromPyritoneCommand()
+            );
             baritoneGateway.tickApplyPyritoneChatBranding();
+            tickPauseState(client);
             tickTaskLifecycle();
             tickStatusStreams();
         });
@@ -139,8 +161,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         }
     }
     private boolean handleOutgoingChat(String message) {
-        if (message != null && message.trim().equalsIgnoreCase("#pyritone end")) {
-            endPythonSessionsFromPyritoneCommand();
+        if (applyPyritoneChatControl(message)) {
             return false;
         }
         emitWatchMatches("chat", message);
@@ -189,6 +210,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     }
 
     private void shutdownBridgeServer() {
+        clearPauseStateForShutdown();
         statusSubscriptionRegistry.clear();
         typedApiService.clear();
         if (this.server != null) {
@@ -214,6 +236,13 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
                 return ProtocolCodec.errorResponse(id, "UNAUTHORIZED", "Authenticate with auth.login first");
             }
 
+            if (isPauseGatedMethod(method)) {
+                JsonObject pauseError = pauseGateError(id);
+                if (pauseError != null) {
+                    return pauseError;
+                }
+            }
+
             return switch (method) {
                 case "auth.login" -> handleAuthLogin(id, params, session);
                 case "ping" -> handlePing(id, session);
@@ -224,7 +253,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
                 case "api.construct" -> handleApiConstruct(id, params, session);
                 case "api.invoke" -> handleApiInvoke(id, params, session);
                 case "entities.list" -> handleEntitiesList(id, params);
-                case "baritone.execute" -> handleBaritoneExecute(id, params);
+                case "baritone.execute" -> handleBaritoneExecute(id, params, session);
                 case "task.cancel" -> handleTaskCancel(id);
                 default -> ProtocolCodec.errorResponse(id, "METHOD_NOT_FOUND", "Unknown method: " + method);
             };
@@ -244,7 +273,13 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             return ProtocolCodec.errorResponse(id, "UNAUTHORIZED", "Invalid token");
         }
 
+        if (hasAnotherAuthenticatedSession(session)) {
+            return ProtocolCodec.errorResponse(id, "UNAUTHORIZED", "Another Python session is already connected");
+        }
+
         session.setAuthenticated(true);
+
+        emitPauseStateEventToSession(session, currentPauseStateSnapshot());
 
         JsonObject result = new JsonObject();
         result.addProperty("protocol_version", BridgeConfig.PROTOCOL_VERSION);
@@ -386,7 +421,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         return ProtocolCodec.toLine(status);
     }
 
-    private JsonObject handleBaritoneExecute(String id, JsonObject params) {
+    private JsonObject handleBaritoneExecute(String id, JsonObject params, WebSocketBridgeServer.ClientSession session) {
         String command = asString(params, "command");
         if (command == null || command.isBlank()) {
             return ProtocolCodec.errorResponse(id, "BAD_REQUEST", "Missing command");
@@ -514,6 +549,8 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     }
 
     public int endPythonSessionsFromPyritoneCommand() {
+        clearOperatorPauseStateFromControl();
+
         WebSocketBridgeServer currentServer = this.server;
         if (currentServer == null || !currentServer.isRunning()) {
             emitPyritoneNotice("Bridge is not running");
@@ -536,6 +573,28 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         }
 
         return disconnected;
+    }
+
+    public boolean pausePythonExecuteFromPyritoneCommand() {
+        boolean changed = setOperatorPauseActive(true);
+
+        if (changed) {
+            emitPyritoneNotice("Paused Python bridge request dispatch");
+        } else {
+            emitPyritoneNotice("Python bridge request dispatch is already paused");
+        }
+        return changed;
+    }
+
+    public boolean resumePythonExecuteFromPyritoneCommand() {
+        boolean changed = setOperatorPauseActive(false);
+
+        if (changed) {
+            emitPyritoneNotice("Resumed Python bridge request dispatch");
+        } else {
+            emitPyritoneNotice("Python bridge request dispatch was not paused");
+        }
+        return changed;
     }
 
     public boolean forceCancelActiveTaskFromPyritoneCommand() {
@@ -582,6 +641,11 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
         TaskSnapshot current = active.orElseThrow();
         taskLifecycleResolver.recordPathEvent(current.taskId(), pathEventName);
+    }
+
+    private void tickPauseState(MinecraftClient client) {
+        boolean paused = client != null && client.isPaused();
+        setGamePauseActive(paused);
     }
 
     private void tickTaskLifecycle() {
@@ -732,6 +796,208 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         currentServer.publishEvent(ProtocolCodec.eventEnvelope(eventName, data));
     }
 
+    private boolean applyPyritoneChatControl(String message) {
+        String subcommand = pyritoneSubcommand(message);
+        if (subcommand == null) {
+            return false;
+        }
+
+        return switch (subcommand) {
+            case "end" -> {
+                endPythonSessionsFromPyritoneCommand();
+                yield true;
+            }
+            case "pause" -> {
+                pausePythonExecuteFromPyritoneCommand();
+                yield true;
+            }
+            case "resume" -> {
+                resumePythonExecuteFromPyritoneCommand();
+                yield true;
+            }
+            default -> false;
+        };
+    }
+
+    private static String pyritoneSubcommand(String message) {
+        if (message == null) {
+            return null;
+        }
+        String trimmed = message.trim();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        String normalized = trimmed.toLowerCase(Locale.ROOT);
+        if (!normalized.startsWith("#pyritone")) {
+            return null;
+        }
+        String rest = normalized.substring("#pyritone".length()).trim();
+        if (rest.isBlank()) {
+            return "";
+        }
+        int split = rest.indexOf(' ');
+        return split >= 0 ? rest.substring(0, split) : rest;
+    }
+
+    private boolean isPauseGatedMethod(String method) {
+        return PAUSE_GATED_METHODS.contains(method);
+    }
+
+    private JsonObject pauseGateError(String id) {
+        PauseStateSnapshot snapshot = currentPauseStateSnapshot();
+        if (!snapshot.paused()) {
+            return null;
+        }
+
+        JsonObject payload = pauseStateToJson(snapshot);
+        String message = pauseReasonMessage(snapshot);
+        return ProtocolCodec.errorResponse(id, "PAUSED", message, payload);
+    }
+
+    private static String pauseReasonMessage(PauseStateSnapshot snapshot) {
+        if (snapshot.operatorPaused() && snapshot.gamePaused()) {
+            return "Bridge request handling is paused (operator + game pause active)";
+        }
+        if (snapshot.operatorPaused()) {
+            return "Bridge request handling is paused by #pyritone pause";
+        }
+        if (snapshot.gamePaused()) {
+            return "Bridge request handling is paused because Minecraft is paused";
+        }
+        return "Bridge request handling is paused";
+    }
+
+    private boolean setOperatorPauseActive(boolean active) {
+        PauseStateSnapshot snapshot = null;
+        synchronized (pauseStateLock) {
+            if (operatorPauseActive == active) {
+                return false;
+            }
+            operatorPauseActive = active;
+            snapshot = updatePauseStateLocked();
+        }
+        publishPauseStateEvent(snapshot);
+        return true;
+    }
+
+    private boolean setGamePauseActive(boolean active) {
+        PauseStateSnapshot snapshot = null;
+        synchronized (pauseStateLock) {
+            if (gamePauseActive == active) {
+                return false;
+            }
+            gamePauseActive = active;
+            snapshot = updatePauseStateLocked();
+        }
+        publishPauseStateEvent(snapshot);
+        return true;
+    }
+
+    private void clearOperatorPauseStateFromControl() {
+        PauseStateSnapshot snapshot = null;
+        synchronized (pauseStateLock) {
+            if (!operatorPauseActive) {
+                return;
+            }
+            operatorPauseActive = false;
+            snapshot = updatePauseStateLocked();
+        }
+        publishPauseStateEvent(snapshot);
+    }
+
+    private void clearPauseStateForShutdown() {
+        PauseStateSnapshot snapshot = null;
+        synchronized (pauseStateLock) {
+            if (!operatorPauseActive && !gamePauseActive && !effectivePauseActive) {
+                return;
+            }
+            operatorPauseActive = false;
+            gamePauseActive = false;
+            snapshot = updatePauseStateLocked();
+        }
+        publishPauseStateEvent(snapshot);
+    }
+
+    private PauseStateSnapshot currentPauseStateSnapshot() {
+        synchronized (pauseStateLock) {
+            return new PauseStateSnapshot(
+                effectivePauseActive,
+                operatorPauseActive,
+                gamePauseActive,
+                pauseReason(operatorPauseActive, gamePauseActive),
+                pauseStateSeq
+            );
+        }
+    }
+
+    private PauseStateSnapshot updatePauseStateLocked() {
+        effectivePauseActive = operatorPauseActive || gamePauseActive;
+        pauseStateSeq += 1L;
+        return new PauseStateSnapshot(
+            effectivePauseActive,
+            operatorPauseActive,
+            gamePauseActive,
+            pauseReason(operatorPauseActive, gamePauseActive),
+            pauseStateSeq
+        );
+    }
+
+    private void publishPauseStateEvent(PauseStateSnapshot snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        publishEvent("bridge.pause_state", pauseStateToJson(snapshot));
+    }
+
+    private void emitPauseStateEventToSession(WebSocketBridgeServer.ClientSession session, PauseStateSnapshot snapshot) {
+        WebSocketBridgeServer currentServer = this.server;
+        if (currentServer == null || !currentServer.isRunning() || session == null || snapshot == null) {
+            return;
+        }
+        JsonObject envelope = ProtocolCodec.eventEnvelope("bridge.pause_state", pauseStateToJson(snapshot));
+        currentServer.publishEvent(session, envelope);
+    }
+
+    private static JsonObject pauseStateToJson(PauseStateSnapshot snapshot) {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("paused", snapshot.paused());
+        payload.addProperty("operator_paused", snapshot.operatorPaused());
+        payload.addProperty("game_paused", snapshot.gamePaused());
+        payload.addProperty("reason", snapshot.reason());
+        payload.addProperty("seq", snapshot.seq());
+        return payload;
+    }
+
+    private static String pauseReason(boolean operatorPaused, boolean gamePaused) {
+        if (operatorPaused && gamePaused) {
+            return "operator_and_game_pause";
+        }
+        if (operatorPaused) {
+            return "operator_pause";
+        }
+        if (gamePaused) {
+            return "game_pause";
+        }
+        return "resumed";
+    }
+
+    private boolean hasAnotherAuthenticatedSession(WebSocketBridgeServer.ClientSession session) {
+        WebSocketBridgeServer currentServer = this.server;
+        if (currentServer == null || !currentServer.isRunning()) {
+            return false;
+        }
+
+        for (WebSocketBridgeServer.ClientSession candidate : currentServer.sessionSnapshot()) {
+            if (candidate == session) {
+                continue;
+            }
+            if (candidate.isAuthenticated()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String asString(JsonObject source, String key) {
         if (source == null || !source.has(key) || !source.get(key).isJsonPrimitive()) {
             return null;
@@ -797,6 +1063,15 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         prefix.append(Text.literal("Py-Ritone").formatted(Formatting.GREEN));
         prefix.append(Text.literal("]").formatted(Formatting.DARK_GREEN));
         return prefix;
+    }
+
+    private record PauseStateSnapshot(
+        boolean paused,
+        boolean operatorPaused,
+        boolean gamePaused,
+        String reason,
+        long seq
+    ) {
     }
 }
 

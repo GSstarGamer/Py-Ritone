@@ -9,6 +9,13 @@ EMPTY_POLL_DELAY_SECONDS = 0.0
 ERROR_RETRY_DELAY_SECONDS = 0
 
 
+def _format_error(error: BaseException) -> str:
+    message = str(error).strip()
+    if message:
+        return message
+    return error.__class__.__name__
+
+
 async def main() -> None:
     async with Client() as client:
         player = await client.get_player()
@@ -19,9 +26,13 @@ async def main() -> None:
                 entities_now = await player.get_entities(types=[entities.GROUP_MOBS])
             except BridgeError as error:
                 if error.code == "UNAUTHORIZED":
-                    print(f"Bridge disconnected: {error}")
+                    print(f"Bridge disconnected: {_format_error(error)}")
                     break
-                print(f"entities.list failed: {error}")
+                print(f"entities.list failed: {_format_error(error)}")
+                await asyncio.sleep(ERROR_RETRY_DELAY_SECONDS)
+                continue
+            except TimeoutError as error:
+                print(f"entities.list timed out: {_format_error(error)}")
                 await asyncio.sleep(ERROR_RETRY_DELAY_SECONDS)
                 continue
             except (ConnectionError, RuntimeError) as error:
@@ -59,15 +70,18 @@ async def main() -> None:
                     print(f"Finished {latest_entity.id}: {terminal.get('event', 'unknown')}")
                 except BridgeError as error:
                     if error.code == "UNAUTHORIZED":
-                        print(f"Bridge disconnected: {error}")
+                        print(f"Bridge disconnected: {_format_error(error)}")
                         return
-                    print(f"Skipping entity {entity_id}: {error}")
+                    print(f"Skipping entity {entity_id}: {_format_error(error)}")
+                    continue
+                except TimeoutError as error:
+                    print(f"Skipping entity {entity_id}: {_format_error(error)}")
                     continue
                 except (ConnectionError, RuntimeError) as error:
                     print(f"Bridge disconnected: {error}")
                     return
                 except Exception as error:  # noqa: BLE001
-                    print(f"Skipping entity {entity_id}: {error}")
+                    print(f"Skipping entity {entity_id}: {_format_error(error)}")
                     continue
 
 

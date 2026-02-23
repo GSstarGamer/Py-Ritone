@@ -29,6 +29,26 @@ public final class PyritoneCommand {
                             }
                             return 1;
                         }))
+                    .then(ClientCommandManager.literal("pause")
+                        .executes(context -> {
+                            boolean changed = mod.pausePythonExecuteFromPyritoneCommand();
+                            if (changed) {
+                                context.getSource().sendFeedback(Text.literal("Paused Python bridge request dispatch"));
+                            } else {
+                                context.getSource().sendFeedback(Text.literal("Python bridge request dispatch is already paused"));
+                            }
+                            return 1;
+                        }))
+                    .then(ClientCommandManager.literal("resume")
+                        .executes(context -> {
+                            boolean changed = mod.resumePythonExecuteFromPyritoneCommand();
+                            if (changed) {
+                                context.getSource().sendFeedback(Text.literal("Resumed Python bridge request dispatch"));
+                            } else {
+                                context.getSource().sendFeedback(Text.literal("Python bridge request dispatch was not paused"));
+                            }
+                            return 1;
+                        }))
                     .then(ClientCommandManager.literal("bridge-info")
                         .executes(context -> {
                             context.getSource().sendFeedback(Text.literal(mod.bridgeInfoPath().toString()));

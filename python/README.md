@@ -29,6 +29,30 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+## Logging (Default)
+
+`pyritone` emits human-readable logs through logger `pyritone` by default.
+
+- `INFO`: connection lifecycle and command-send actions.
+- `INFO`: includes bridge pause/resume transitions (`State paused` / `State resumed`).
+- `DEBUG`: received summaries, task/status/path state transitions, and raw websocket payloads.
+
+Adjust levels if needed:
+
+```python
+import logging
+
+logging.getLogger("pyritone").setLevel(logging.DEBUG)
+```
+
+Example output:
+
+```text
+[Py-Ritone] Sent goto_entity ( minecraft:zombie, 12nj12hb31 )
+[Py-Ritone] Sent goto ( 128, 64, -23 )
+[Py-Ritone] State working ( task_id=task-1, detail=Command accepted )
+```
+
 ## Demos
 
 The quick examples above are intentionally small.

@@ -39,6 +39,22 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+### Logging
+
+`Client` logs to logger name `pyritone`:
+
+- `INFO` (default): connection lifecycle + command-send actions
+- `INFO` also includes bridge pause/resume transitions (`State paused` / `State resumed`)
+- `DEBUG`: received summaries, task/status/path transitions, and raw websocket payload frames (`send ...`, `recv ...`)
+
+Raise verbosity when you need deeper path details:
+
+```python
+import logging
+
+logging.getLogger("pyritone").setLevel(logging.DEBUG)
+```
+
 ### Return shape
 
 ```text
@@ -72,6 +88,24 @@ Build helpers:
 - await build_file(...) -> CommandDispatchResult
 - await build_file_wait(...) -> terminal event envelope dict[str, Any]
 ```
+
+### Pause handling
+
+- Bridge emits `bridge.pause_state` events with:
+  - `paused`, `operator_paused`, `game_paused`, `reason`, `seq`
+- If a request receives protocol error `PAUSED`, client transparently waits for
+  `bridge.pause_state` with `paused=false`, then retries the same RPC.
+- Caller `await` stays blocked during that wait; it does not pass early.
+- Normal request timeout behavior still applies for non-`PAUSED` paths.
+
+### `goto_entity(..., wait=True)` during pause
+
+- `goto_entity(..., wait=True)` is pause-aware:
+  - if a pause/resume transition happened during the wait window, client
+    refreshes the same entity id/type and re-dispatches to latest rounded
+    coordinates before returning.
+  - if the entity disappears after resume, it raises
+    `BridgeError(code="ENTITY_NOT_VISIBLE", ...)`.
 
 ### Common mistakes
 

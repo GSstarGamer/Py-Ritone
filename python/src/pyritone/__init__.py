@@ -29,4 +29,19 @@ __all__ = [
     "minecraft",
 ]
 
-logging.getLogger("pyritone").addHandler(logging.NullHandler())
+
+def _configure_default_logger() -> None:
+    logger = logging.getLogger("pyritone")
+    has_non_null_handler = any(not isinstance(handler, logging.NullHandler) for handler in logger.handlers)
+    has_root_handler = bool(logging.getLogger().handlers)
+
+    if not has_non_null_handler and not has_root_handler:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+
+    if logger.level == logging.NOTSET:
+        logger.setLevel(logging.INFO)
+
+
+_configure_default_logger()

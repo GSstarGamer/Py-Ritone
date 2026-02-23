@@ -46,15 +46,51 @@ Non-terminal update events for the same task_id:
 
 ### Terminal timing semantics
 
-- `wait_for_task(task_id)` now waits for stable terminal state, not the first raw path hint.
-- Internal Baritone recalculations can emit temporary `baritone.path_event` values like `CANCELED` or `CALC_FAILED`; those are treated as hints until the task is truly idle.
-- This prevents early exits during long `goto`, `build`, and recalculation-heavy flows.
-- During pause states (for example builder pause or user pause), `wait_for_task(...)` keeps waiting and can report updates through `on_update`.
+- `wait_for_task(task_id)` waits for matching terminal task events (`task.completed`, `task.failed`, `task.canceled`).
+- `goto_wait(...)` keeps responsiveness fast paths for `baritone.path_event` hints:
+  - `AT_GOAL` -> synthetic `task.completed`
+  - `CANCELED` -> synthetic `task.canceled`
+- When bridge pause is active (`bridge.pause_state.paused=true`) or the tracked
+  task is paused, `CANCELED` hints do not fast-complete the wait.
+- Those path-hint fast paths can resolve before later bridge terminal events.
+
+### Bridge pause-state events and request behavior
+
+- Bridge emits `bridge.pause_state` with:
+  - `paused`
+  - `operator_paused`
+  - `game_paused`
+  - `reason`
+  - `seq`
+- On RPC error `PAUSED`, Python client transparently waits for resumed
+  (`bridge.pause_state.paused=false`) and retries the same request.
+- If websocket closes while waiting for resume, pending request raises
+  `ConnectionError`.
+
+### `goto_entity(..., wait=True)` retarget behavior
+
+- If pause/resume transitions occur while waiting, `goto_entity(..., wait=True)`
+  refreshes that same entity id/type and re-dispatches to latest rounded
+  coordinates before returning.
+- If the entity is no longer visible after resume, client raises
+  `BridgeError(code="ENTITY_NOT_VISIBLE", ...)` so caller can skip intentionally.
+
+### Logging of states and pathing
+
+- By default, logger `pyritone` focuses on command-send logs at `INFO`.
+- Task/status/path transition details are emitted at `DEBUG`.
+- `baritone.path_event` values are inferred into pathing states at `DEBUG`:
+  - `*CALC*START*` -> `calculating`
+  - `*CALC*FINISH*` / success-like events -> `best_path_ready`
+  - `*CALC*FAIL*` -> `calculation_failed`
+  - `AT_GOAL` -> `at_goal`
+  - `CANCELED` -> `canceled`
+- Typed Baritone wait handles also log transition-focused `moving` / `calculating` state changes and completion summaries at `DEBUG`.
 
 ### Hard stop from in-game
 
-- Use `#pyritone cancel` (or `/pyritone cancel`) to hard-cancel the active tracked task.
-- Hard cancel emits `task.canceled` immediately so waiting Python scripts end right away.
+- Use `#pyritone end` (or `/pyritone end`) to close authenticated Python websocket sessions.
+- This operator stop control is separate from API task cancellation (`task.cancel`).
 
 ### Common mistakes
 
