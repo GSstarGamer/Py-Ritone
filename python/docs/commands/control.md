@@ -41,9 +41,8 @@ Cancel what Baritone is currently doing
 ### When to use this
 - The cancel command tells Baritone to stop whatever it's currently doing.
 
-### Method signatures
-- Sync: `PyritoneClient.cancel(task_id: str | None = None) -> dict[str, Any]`
-- Async: `AsyncPyritoneClient.cancel(task_id: str | None = None) -> dict[str, Any]`
+### Method signature
+- `Client.cancel(task_id: str | None = None) -> dict[str, Any]`
 
 ### Baritone syntax
 - `> cancel`
@@ -52,28 +51,15 @@ Cancel what Baritone is currently doing
 - Domain: `control`
 - Aliases: c, stop
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    result = client.cancel()
-    print(result)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         result = await client.cancel()
         print(result)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -109,9 +95,8 @@ Force cancel
 ### When to use this
 - Like cancel, but more forceful.
 
-### Method signatures
-- Sync: `PyritoneClient.forcecancel(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.forcecancel(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.forcecancel(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> forcecancel`
@@ -120,28 +105,15 @@ Force cancel
 - Domain: `control`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.forcecancel()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.forcecancel()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -177,9 +149,8 @@ List modified settings
 ### When to use this
 - This command is an alias for: set modified
 
-### Method signatures
-- Sync: `PyritoneClient.modified(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.modified(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.modified(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> set modified`
@@ -188,28 +159,15 @@ List modified settings
 - Domain: `control`
 - Aliases: mod, baritone, modifiedsettings
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.modified()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.modified()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -246,9 +204,8 @@ Pauses Baritone until you use resume
 ### When to use this
 - The pause command tells Baritone to temporarily stop whatever it's doing.
 
-### Method signatures
-- Sync: `PyritoneClient.pause(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.pause(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.pause(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> pause`
@@ -257,28 +214,15 @@ Pauses Baritone until you use resume
 - Domain: `control`
 - Aliases: p, paws
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.pause()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.pause()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -314,9 +258,8 @@ Tells you if Baritone is paused
 ### When to use this
 - The paused command tells you if Baritone is currently paused by use of the pause command.
 
-### Method signatures
-- Sync: `PyritoneClient.paused(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.paused(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.paused(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> paused`
@@ -325,28 +268,15 @@ Tells you if Baritone is paused
 - Domain: `control`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.paused()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.paused()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -382,9 +312,8 @@ Reset all settings or just one
 ### When to use this
 - This command is an alias for: set reset
 
-### Method signatures
-- Sync: `PyritoneClient.reset(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.reset(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.reset(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> set reset`
@@ -393,28 +322,15 @@ Reset all settings or just one
 - Domain: `control`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.reset("allowPlace")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.reset("allowPlace")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -451,9 +367,8 @@ Resumes Baritone after a pause
 ### When to use this
 - The resume command tells Baritone to resume whatever it was doing when you last used pause.
 
-### Method signatures
-- Sync: `PyritoneClient.resume(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.resume(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.resume(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> resume`
@@ -462,28 +377,15 @@ Resumes Baritone after a pause
 - Domain: `control`
 - Aliases: r, unpause, unpaws
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.resume()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.resume()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -519,9 +421,8 @@ View or change settings
 ### When to use this
 - Using the set command, you can manage all of Baritone's settings. Almost every aspect is controlled by these settings - go wild!
 
-### Method signatures
-- Sync: `PyritoneClient.set(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.set(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.set(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> set - Same as `set list``
@@ -540,28 +441,15 @@ View or change settings
 - Domain: `control`
 - Aliases: setting, settings
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.set("allowPlace", True)
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.set("allowPlace", True)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```

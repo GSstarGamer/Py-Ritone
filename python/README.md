@@ -50,6 +50,7 @@ python demos/01_connect_discovery.py
 - Full docs index: `python/docs/index.md`
 - Quickstart: `python/docs/quickstart.md`
 - Async client guide: `python/docs/async-client.md`
+- Legacy import migration: `python/docs/migration-from-legacy-aliases.md`
 - Settings API: `python/docs/settings-api.md`
 - Tasks/events/waiting: `python/docs/tasks-events-and-waiting.md`
 - Errors/troubleshooting: `python/docs/errors-and-troubleshooting.md`
@@ -64,14 +65,13 @@ python demos/01_connect_discovery.py
   - `python/docs/commands/aliases.md`
 - Raw Baritone appendix: `python/docs/baritone-commands.md`
 - Typed parity matrix: `python/docs/baritone-typed-parity.md`
+- Release parity/debt report: `python/docs/release-parity-fallback-report.md`
 
 ## Public API Map
 
 - Clients:
-  - `Client` (primary)
-  - `PyritoneClient`
-  - `AsyncPyritoneClient`
-  - `PyritoneClient` and `AsyncPyritoneClient` are temporary async aliases of `Client`.
+  - `Client` (primary async surface)
+  - Legacy aliases (`PyritoneClient`, `AsyncPyritoneClient`) are compatibility-only; use `Client` in docs and new code.
 - Low-level methods:
   - `ping`, `status_get`, `status_subscribe`, `status_unsubscribe`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
   - Typed API substrate: `api_metadata_get`, `api_construct`, `api_invoke`

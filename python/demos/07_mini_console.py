@@ -1,11 +1,13 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import asyncio
+import inspect
 import shlex
 
 from _common import (
     parse_scalars,
     print_json,
-    run_sync_demo,
+    run_async_demo,
     step,
     summarize_dispatch,
     summarize_event,
@@ -47,7 +49,7 @@ def _maybe_track_task_id(last_task_id: str | None, payload: dict) -> str | None:
     return last_task_id
 
 
-def demo(client):
+async def demo(client):
     step("Interactive mini console connected. Type 'help' for commands, 'quit' to exit.")
     print(HELP_TEXT)
 
@@ -55,7 +57,7 @@ def demo(client):
 
     while True:
         try:
-            line = input("pyritone> ").strip()
+            line = (await asyncio.to_thread(input, "pyritone> ")).strip()
         except EOFError:
             print()
             break
@@ -81,12 +83,12 @@ def demo(client):
 
         try:
             if command == "ping":
-                result = client.ping()
+                result = await client.ping()
                 print_json("ping()", result)
                 continue
 
             if command == "status":
-                result = client.status_get()
+                result = await client.status_get()
                 print_json("status_get()", result)
                 continue
 
@@ -94,7 +96,7 @@ def demo(client):
                 if not args:
                     print("usage: exec <baritone command>")
                     continue
-                result = client.execute(" ".join(args))
+                result = await client.execute(" ".join(args))
                 print_json("execute(...) result", result)
                 last_task_id = _maybe_track_task_id(last_task_id, result)
                 continue
@@ -104,7 +106,7 @@ def demo(client):
                     print("usage: goto <x> <y> <z>")
                     continue
                 x, y, z = (int(value) for value in args)
-                dispatch = client.goto(x, y, z)
+                dispatch = await client.goto(x, y, z)
                 print(f"goto() dispatch: {summarize_dispatch(dispatch)}")
                 print_json("goto()", dispatch)
                 last_task_id = _maybe_track_task_id(last_task_id, dispatch)
@@ -115,7 +117,7 @@ def demo(client):
                 if not task_id:
                     print("No task_id provided and no remembered task_id.")
                     continue
-                event = client.wait_for_task(task_id)
+                event = await client.wait_for_task(task_id)
                 print(f"terminal event: {summarize_event(event)}")
                 print_json("terminal event", event)
                 print(terminal_summary(event))
@@ -123,13 +125,13 @@ def demo(client):
 
             if command == "cancel":
                 task_id = args[0] if args else last_task_id
-                result = client.cancel(task_id=task_id)
+                result = await client.cancel(task_id=task_id)
                 print_json("cancel()", result)
                 continue
 
             if command == "event":
                 timeout = float(args[0]) if args else 5.0
-                event = client.next_event(timeout=timeout)
+                event = await client.next_event(timeout=timeout)
                 print(f"event: {summarize_event(event)}")
                 print_json("event", event)
                 continue
@@ -141,7 +143,7 @@ def demo(client):
                 setting_name = args[0]
                 value = " ".join(args[1:])
                 parsed_value = parse_scalars([value])[0]
-                dispatch = client.settings.set(setting_name, parsed_value)
+                dispatch = await client.settings.set(setting_name, parsed_value)
                 print_json("settings.set(...)", dispatch)
                 continue
 
@@ -149,7 +151,7 @@ def demo(client):
                 if len(args) != 1:
                     print("usage: get <name>")
                     continue
-                dispatch = client.settings.get(args[0])
+                dispatch = await client.settings.get(args[0])
                 print_json("settings.get(...)", dispatch)
                 continue
 
@@ -157,7 +159,7 @@ def demo(client):
                 if len(args) != 1:
                     print("usage: toggle <name>")
                     continue
-                dispatch = client.settings.toggle(args[0])
+                dispatch = await client.settings.toggle(args[0])
                 print_json("settings.toggle(...)", dispatch)
                 continue
 
@@ -165,7 +167,7 @@ def demo(client):
                 if len(args) != 1:
                     print("usage: reset <name>")
                     continue
-                dispatch = client.settings.reset(args[0])
+                dispatch = await client.settings.reset(args[0])
                 print_json("settings.reset(...)", dispatch)
                 continue
 
@@ -177,6 +179,8 @@ def demo(client):
 
                 parsed_args = parse_scalars(args)
                 result = method(*parsed_args)
+                if inspect.isawaitable(result):
+                    result = await result
                 if isinstance(result, dict):
                     print_json(f"{command}(...) result", result)
                     last_task_id = _maybe_track_task_id(last_task_id, result)
@@ -195,4 +199,4 @@ def demo(client):
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_sync_demo("07 - Interactive Mini Console", demo))
+    raise SystemExit(run_async_demo("07 - Interactive Mini Console", demo))

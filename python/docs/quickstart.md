@@ -15,9 +15,7 @@ from pyritone import Client
 
 
 async def main() -> None:
-    client = Client()
-    await client.connect()
-    try:
+    async with Client() as client:
         print(await client.ping())
         print(await client.status_get())
         dispatch = await client.build_file("schematics/base.schem", 100, 70, 100)
@@ -26,8 +24,6 @@ async def main() -> None:
         task_id = dispatch.get("task_id")
         if task_id:
             print(await client.wait_for_task(task_id))
-    finally:
-        await client.close()
 
 
 asyncio.run(main())

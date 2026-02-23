@@ -729,41 +729,19 @@ def extract_assignment_target(statement: str) -> str | None:
     return None
 
 
-def render_sync_snippet(example: CommandExampleSpec) -> str:
-    lines = [
-        "from pyritone import PyritoneClient",
-        "",
-        "with PyritoneClient() as client:",
-        f"    {example.sync_call}",
-    ]
-    target = extract_assignment_target(example.sync_call)
-    if target is not None:
-        lines.append(f"    print({target})")
-    return "\n".join(lines)
-
-
 def render_async_snippet(example: CommandExampleSpec) -> str:
     lines = [
         "import asyncio",
-        "from pyritone import AsyncPyritoneClient",
+        "from pyritone import Client",
         "",
         "async def main() -> None:",
-        "    client = AsyncPyritoneClient()",
-        "    await client.connect()",
-        "    try:",
+        "    async with Client() as client:",
         f"        {example.async_call}",
     ]
     target = extract_assignment_target(example.async_call)
     if target is not None:
         lines.append(f"        print({target})")
-    lines.extend(
-        [
-            "    finally:",
-            "        await client.close()",
-            "",
-            "asyncio.run(main())",
-        ]
-    )
+    lines.extend(["", "asyncio.run(main())"])
     return "\n".join(lines)
 
 
@@ -800,8 +778,7 @@ def render_wait_pattern_block(command: ParsedCommand) -> list[str]:
         "### Wait pattern",
         "If `task_id` exists, wait for a terminal event:",
         "",
-        "- Sync: `terminal = client.wait_for_task(dispatch[\"task_id\"])`",
-        "- Async: `terminal = await client.wait_for_task(dispatch[\"task_id\"])`",
+        "- `terminal = await client.wait_for_task(dispatch[\"task_id\"])`",
     ]
 
 
@@ -847,9 +824,8 @@ def generate_command_card(command: ParsedCommand, domain_commands: list[ParsedCo
         "### When to use this",
         f"- {when_to_use}",
         "",
-        "### Method signatures",
-        f"- Sync: `PyritoneClient.{command_method_signature(command)}`",
-        f"- Async: `AsyncPyritoneClient.{command_method_signature(command)}`",
+        "### Method signature",
+        f"- `Client.{command_method_signature(command)}`",
         "",
         "### Baritone syntax",
     ]
@@ -863,12 +839,7 @@ def generate_command_card(command: ParsedCommand, domain_commands: list[ParsedCo
             f"- Domain: `{command.domain}`",
             f"- Aliases: {aliases_text}",
             "",
-            "### Sync example",
-            "```python",
-            render_sync_snippet(example),
-            "```",
-            "",
-            "### Async example",
+            "### Example",
             "```python",
             render_async_snippet(example),
             "```",
@@ -944,32 +915,17 @@ def generate_domain_commands_markdown(commands: list[ParsedCommand], domain: str
                 "",
                 "Extra helpers for local schematic files relative to your Python script.",
                 "",
-                "### Sync example",
-                "```python",
-                "from pyritone import PyritoneClient",
-                "",
-                "with PyritoneClient() as client:",
-                "    dispatch = client.build_file(\"schematics/base\", 100, 70, 100)",
-                "    print(dispatch)",
-                "    terminal = client.build_file_wait(\"schematics/base\", 100, 70, 100)",
-                "    print(terminal)",
-                "```",
-                "",
-                "### Async example",
+                "### Example",
                 "```python",
                 "import asyncio",
-                "from pyritone import AsyncPyritoneClient",
+                "from pyritone import Client",
                 "",
                 "async def main() -> None:",
-                "    client = AsyncPyritoneClient()",
-                "    await client.connect()",
-                "    try:",
+                "    async with Client() as client:",
                 "        dispatch = await client.build_file(\"schematics/base\", 100, 70, 100)",
                 "        print(dispatch)",
                 "        terminal = await client.build_file_wait(\"schematics/base\", 100, 70, 100)",
                 "        print(terminal)",
-                "    finally:",
-                "        await client.close()",
                 "",
                 "asyncio.run(main())",
                 "```",
@@ -1028,28 +984,15 @@ def generate_alias_markdown(commands: list[ParsedCommand], alias_map: dict[str, 
     lines.extend(
         [
             "",
-            "### Sync example",
-            "```python",
-            "from pyritone import PyritoneClient",
-            "",
-            "with PyritoneClient() as client:",
-            "    dispatch = client.wp(\"list\")",
-            "    print(dispatch)",
-            "```",
-            "",
-            "### Async example",
+            "### Example",
             "```python",
             "import asyncio",
-            "from pyritone import AsyncPyritoneClient",
+            "from pyritone import Client",
             "",
             "async def main() -> None:",
-            "    client = AsyncPyritoneClient()",
-            "    await client.connect()",
-            "    try:",
+            "    async with Client() as client:",
             "        dispatch = await client.wp(\"list\")",
             "        print(dispatch)",
-            "    finally:",
-            "        await client.close()",
             "",
             "asyncio.run(main())",
             "```",
@@ -1085,12 +1028,7 @@ def generate_alias_markdown(commands: list[ParsedCommand], alias_map: dict[str, 
                 "",
                 f"Alias method `{alias_method}` delegates to `{canonical_method}`.",
                 "",
-                "#### Sync example",
-                "```python",
-                render_sync_snippet(example),
-                "```",
-                "",
-                "#### Async example",
+                "#### Example",
                 "```python",
                 render_async_snippet(example),
                 "```",

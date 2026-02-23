@@ -31,28 +31,15 @@ Direct alias-to-canonical mapping for all generated alias methods.
 | `waypoint` | `waypoints` | `waypoint` | `waypoints` | `waypoints` |
 | `wp` | `waypoints` | `wp` | `waypoints` | `waypoints` |
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.wp("list")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.wp("list")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -77,28 +64,15 @@ Aliases return the same shape as their canonical method.
 
 Alias method `qmark` delegates to `help`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.qmark("goto")
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.qmark("goto")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -111,28 +85,15 @@ asyncio.run(main())
 
 Alias method `baritone` delegates to `modified`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.baritone()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.baritone()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -145,28 +106,15 @@ asyncio.run(main())
 
 Alias method `c` delegates to `cancel`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    result = client.c()
-    print(result)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         result = await client.c()
         print(result)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -179,28 +127,15 @@ asyncio.run(main())
 
 Alias method `forward` delegates to `thisway`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.forward(200)
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.forward(200)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -213,28 +148,15 @@ asyncio.run(main())
 
 Alias method `highway` delegates to `axis`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.highway()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.highway()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -247,28 +169,15 @@ asyncio.run(main())
 
 Alias method `mod` delegates to `modified`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.mod()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.mod()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -281,28 +190,15 @@ asyncio.run(main())
 
 Alias method `modifiedsettings` delegates to `modified`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.modifiedsettings()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.modifiedsettings()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -315,28 +211,15 @@ asyncio.run(main())
 
 Alias method `p` delegates to `pause`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.p()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.p()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -349,28 +232,15 @@ asyncio.run(main())
 
 Alias method `paws` delegates to `pause`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.paws()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.paws()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -383,28 +253,15 @@ asyncio.run(main())
 
 Alias method `r` delegates to `resume`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.r()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.r()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -417,28 +274,15 @@ asyncio.run(main())
 
 Alias method `rescan` delegates to `repack`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.rescan()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.rescan()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -451,28 +295,15 @@ asyncio.run(main())
 
 Alias method `s` delegates to `sel`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.s("pos1")
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.s("pos1")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -485,28 +316,15 @@ asyncio.run(main())
 
 Alias method `selection` delegates to `sel`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.selection("pos1")
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.selection("pos1")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -519,28 +337,15 @@ asyncio.run(main())
 
 Alias method `setting` delegates to `set`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.setting("allowPlace", True)
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.setting("allowPlace", True)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -553,28 +358,15 @@ asyncio.run(main())
 
 Alias method `settings` delegates to `set`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.settings("allowPlace", True)
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.settings("allowPlace", True)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -587,28 +379,15 @@ asyncio.run(main())
 
 Alias method `stop` delegates to `cancel`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    result = client.stop()
-    print(result)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         result = await client.stop()
         print(result)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -621,28 +400,15 @@ asyncio.run(main())
 
 Alias method `top` delegates to `surface`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.top()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.top()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -655,28 +421,15 @@ asyncio.run(main())
 
 Alias method `unpause` delegates to `resume`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.unpause()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.unpause()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -689,28 +442,15 @@ asyncio.run(main())
 
 Alias method `unpaws` delegates to `resume`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.unpaws()
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.unpaws()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -723,28 +463,15 @@ asyncio.run(main())
 
 Alias method `waypoint` delegates to `waypoints`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.waypoint("list")
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.waypoint("list")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -757,28 +484,15 @@ asyncio.run(main())
 
 Alias method `wp` delegates to `waypoints`.
 
-#### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.wp("list")
-    print(dispatch)
-```
-
-#### Async example
+#### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.wp("list")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```

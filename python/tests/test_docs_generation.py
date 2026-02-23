@@ -56,17 +56,17 @@ def test_every_canonical_command_appears_in_one_domain_doc():
     assert all(count == 1 for count in found.values())
 
 
-def test_every_command_section_has_sync_and_async_examples():
+def test_every_command_section_has_async_example():
     for path in DOMAIN_FILES:
         sections = _extract_command_sections(_read(path))
         assert sections, f"No command sections found in {path}"
         for command_name, section_text in sections.items():
-            sync_example = _extract_python_example(section_text, "### Sync example")
-            async_example = _extract_python_example(section_text, "### Async example")
+            async_example = _extract_python_example(section_text, "### Example")
             method_name = command_name.replace("-", "_")
 
-            assert f"client.{method_name}(" in sync_example, f"Sync example does not call client.{method_name}"
-            assert f"client.{method_name}(" in async_example, f"Async example does not call client.{method_name}"
+            assert f"await client.{method_name}(" in async_example, f"Async example does not await client.{method_name}"
+            assert "### Sync example" not in section_text
+            assert "### Async example" not in section_text
 
 
 def test_alias_doc_contains_full_alias_mapping():

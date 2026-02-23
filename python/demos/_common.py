@@ -4,11 +4,10 @@ import asyncio
 import json
 from typing import Any, Awaitable, Callable
 
-from pyritone import AsyncPyritoneClient, BridgeError, DiscoveryError, PyritoneClient
+from pyritone import BridgeError, Client, DiscoveryError
 from pyritone.models import BridgeInfo
 
-SyncDemoFn = Callable[[PyritoneClient], int | None]
-AsyncDemoFn = Callable[[AsyncPyritoneClient], Awaitable[int | None]]
+AsyncDemoFn = Callable[[Client], Awaitable[int | None]]
 
 
 def banner(title: str) -> None:
@@ -190,21 +189,14 @@ def print_friendly_error(error: BaseException) -> int:
     return exit_code
 
 
-def _bridge_info_from_client(client: PyritoneClient | AsyncPyritoneClient) -> BridgeInfo | None:
-    if isinstance(client, AsyncPyritoneClient):
-        return client.bridge_info
-
-    inner_client = getattr(client, "_client", None)
-    if inner_client is None:
-        return None
-
-    bridge_info = getattr(inner_client, "bridge_info", None)
+def _bridge_info_from_client(client: Client) -> BridgeInfo | None:
+    bridge_info = client.bridge_info
     if isinstance(bridge_info, BridgeInfo):
         return bridge_info
     return None
 
 
-def announce_connection(client: PyritoneClient | AsyncPyritoneClient) -> None:
+def announce_connection(client: Client) -> None:
     info = _bridge_info_from_client(client)
     if info is None:
         step("Connected to bridge.")
@@ -217,39 +209,15 @@ def announce_connection(client: PyritoneClient | AsyncPyritoneClient) -> None:
     )
 
 
-def run_sync_demo(title: str, demo_fn: SyncDemoFn) -> int:
-    banner(title)
-
-    try:
-        with PyritoneClient() as client:
-            announce_connection(client)
-            result = demo_fn(client)
-            step("Demo finished.")
-            if isinstance(result, int):
-                return result
-            return 0
-    except KeyboardInterrupt:
-        print("[stop] Interrupted with Ctrl+C.")
-        return 130
-    except Exception as error:  # pragma: no cover - exercised by demo runtime
-        return print_friendly_error(error)
-
-
 async def _run_async_demo_inner(title: str, demo_fn: AsyncDemoFn) -> int:
     banner(title)
-
-    client = AsyncPyritoneClient()
-    await client.connect()
-    announce_connection(client)
-
-    try:
+    async with Client() as client:
+        announce_connection(client)
         result = await demo_fn(client)
-        step("Demo finished.")
-        if isinstance(result, int):
-            return result
-        return 0
-    finally:
-        await client.close()
+    step("Demo finished.")
+    if isinstance(result, int):
+        return result
+    return 0
 
 
 def run_async_demo(title: str, demo_fn: AsyncDemoFn) -> int:

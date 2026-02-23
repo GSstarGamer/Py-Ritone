@@ -4,8 +4,8 @@ Py-Ritone is a zero-setup local bridge between a Fabric Minecraft client (with B
 
 ## Monorepo Layout
 
-- `mod/`: Fabric client mod (`pyritone_bridge`) exposing a local NDJSON socket bridge.
-- `python/`: PyPI-ready package (`pyritone`) with async client, sync wrapper, and CLI.
+- `mod/`: Fabric client mod (`pyritone_bridge`) exposing a local WebSocket v2 bridge.
+- `python/`: PyPI-ready package (`pyritone`) with async client, compatibility aliases, and CLI.
 - `protocol/`: Versioned bridge protocol docs and JSON schema.
 - `docs/`: Developer setup and runbook.
 
@@ -20,16 +20,22 @@ Py-Ritone is a zero-setup local bridge between a Fabric Minecraft client (with B
 pip install pyritone
 ```
 
-5. Start Minecraft client. Py-Ritone opens `127.0.0.1:27841` automatically.
+5. Start Minecraft client. Py-Ritone opens the local bridge at `ws://127.0.0.1:27841/ws` automatically.
 6. Use the package:
 
 ```python
-from pyritone import PyritoneClient
+import asyncio
+from pyritone import Client
 
-with PyritoneClient() as client:
-    print(client.ping())
-    print(client.status_get())
-    print(client.execute("goto 100 70 100"))
+
+async def main() -> None:
+    async with Client() as client:
+        print(await client.ping())
+        print(await client.status_get())
+        print(await client.execute("goto 100 70 100"))
+
+
+asyncio.run(main())
 ```
 
 ## Demos / Videos
@@ -57,6 +63,11 @@ python demos/01_connect_discovery.py
   - `08` async workflow: `python demos/08_async_workflow.py 0 1000 0 --cancel-after 6 --heartbeat-interval 1.5`
   - `09` local-path build helper: `python demos/09_build_file_local_path.py "house.schem" --coords 100 -60 100 --wait`
   - `10` CLI entrypoints: `python demos/10_cli_entrypoints.py`
+
+## Release Prep
+
+- Async-only release checklist: `docs/release-checklist.md`
+- Parity/fallback debt snapshot: `python/docs/release-parity-fallback-report.md`
 
 ## One-Click Dev Client
 

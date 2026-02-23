@@ -11,18 +11,20 @@ How to handle dispatch, task IDs, and terminal task events.
 ### Example
 
 ```python
+import asyncio
 from pyritone import Client
 
-client = Client()
-await client.connect()
-try:
-    dispatch = await client.goto(100, 70, 100)
-    task_id = dispatch.get("task_id")
-    if task_id:
-        terminal = await client.wait_for_task(task_id, on_update=lambda event: print("update:", event["event"]))
-        print(terminal["event"], terminal["data"])
-finally:
-    await client.close()
+
+async def main() -> None:
+    async with Client() as client:
+        dispatch = await client.goto(100, 70, 100)
+        task_id = dispatch.get("task_id")
+        if task_id:
+            terminal = await client.wait_for_task(task_id, on_update=lambda event: print("update:", event["event"]))
+            print(terminal["event"], terminal["data"])
+
+
+asyncio.run(main())
 ```
 
 ### Return shape

@@ -10,14 +10,16 @@ How `pyritone` finds and authenticates with the local bridge.
 ### Example
 
 ```python
+import asyncio
 from pyritone import Client
 
-client = Client()
-await client.connect()
-try:
-    print(await client.ping())
-finally:
-    await client.close()
+
+async def main() -> None:
+    async with Client() as client:
+        print(await client.ping())
+
+
+asyncio.run(main())
 ```
 
 ### Return shape

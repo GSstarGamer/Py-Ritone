@@ -36,9 +36,8 @@ Path to your home waypoint
 ### When to use this
 - This command is an alias for: waypoints goto home
 
-### Method signatures
-- Sync: `PyritoneClient.home(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.home(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.home(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> waypoints goto home`
@@ -47,28 +46,15 @@ Path to your home waypoint
 - Domain: `waypoints`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.home()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.home()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -85,8 +71,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -109,9 +94,8 @@ Sets your home waypoint
 ### When to use this
 - This command is an alias for: waypoints save home
 
-### Method signatures
-- Sync: `PyritoneClient.sethome(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.sethome(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.sethome(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> waypoints save home`
@@ -120,28 +104,15 @@ Sets your home waypoint
 - Domain: `waypoints`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.sethome()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.sethome()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -158,8 +129,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -182,9 +152,8 @@ Manage waypoints
 ### When to use this
 - The waypoint command allows you to manage Baritone's waypoints.
 
-### Method signatures
-- Sync: `PyritoneClient.waypoints(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.waypoints(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.waypoints(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> wp [l/list] - List all waypoints.`
@@ -202,28 +171,15 @@ Manage waypoints
 - Domain: `waypoints`
 - Aliases: waypoint, wp
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.waypoints("list")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.waypoints("list")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -240,8 +196,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.

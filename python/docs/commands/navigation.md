@@ -46,9 +46,8 @@ Set a goal to the axes
 ### When to use this
 - The axis command sets a goal that tells Baritone to head towards the nearest axis. That is, X=0 or Z=0.
 
-### Method signatures
-- Sync: `PyritoneClient.axis(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.axis(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.axis(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> axis`
@@ -57,28 +56,15 @@ Set a goal to the axes
 - Domain: `navigation`
 - Aliases: highway
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.axis()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.axis()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -95,8 +81,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -120,9 +105,8 @@ Blacklist closest block
 ### When to use this
 - While going to a block this command blacklists the closest block so that Baritone won't attempt to get to it.
 
-### Method signatures
-- Sync: `PyritoneClient.blacklist(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.blacklist(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.blacklist(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> blacklist`
@@ -131,28 +115,15 @@ Blacklist closest block
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.blacklist()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.blacklist()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -169,8 +140,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -194,9 +164,8 @@ Start heading towards your camera
 ### When to use this
 - The come command tells Baritone to head towards your camera.
 
-### Method signatures
-- Sync: `PyritoneClient.come(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.come(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.come(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> come`
@@ -205,28 +174,15 @@ Start heading towards your camera
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.come()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.come()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -243,8 +199,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -268,9 +223,8 @@ elytra time
 ### When to use this
 - The elytra command tells baritone to, in the nether, automatically fly to the current goal.
 
-### Method signatures
-- Sync: `PyritoneClient.elytra(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.elytra(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.elytra(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> elytra - fly to the current goal`
@@ -282,28 +236,15 @@ elytra time
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.elytra()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.elytra()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -320,8 +261,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -345,9 +285,8 @@ Explore things
 ### When to use this
 - Tell Baritone to explore randomly. If you used explorefilter before this, it will be applied.
 
-### Method signatures
-- Sync: `PyritoneClient.explore(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.explore(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.explore(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> explore - Explore from your current position.`
@@ -357,28 +296,15 @@ Explore things
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.explore()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.explore()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -395,8 +321,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -420,9 +345,8 @@ Explore chunks from a json
 ### When to use this
 - Apply an explore filter before using explore, which tells the explore process which chunks have been explored/not explored.
 
-### Method signatures
-- Sync: `PyritoneClient.explorefilter(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.explorefilter(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.explorefilter(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> explorefilter <path> [invert] - Load the JSON file referenced by the specified path. If invert is specified, it must be the literal word 'invert'.`
@@ -431,28 +355,15 @@ Explore chunks from a json
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.explorefilter("explore-filter.json")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.explorefilter("explore-filter.json")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -469,8 +380,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -495,9 +405,8 @@ Set or clear the goal
 ### When to use this
 - The goal command allows you to set or clear Baritone's goal.
 
-### Method signatures
-- Sync: `PyritoneClient.goal(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.goal(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.goal(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> goal - Set the goal to your current position`
@@ -510,28 +419,15 @@ Set or clear the goal
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.goal(100, 70, 100)
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.goal(100, 70, 100)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -548,8 +444,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -573,9 +468,8 @@ Go to a coordinate or block
 ### When to use this
 - The goto command tells Baritone to head towards a given goal or block.
 
-### Method signatures
-- Sync: `PyritoneClient.goto(x: int, y: int, z: int, *extra_args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.goto(x: int, y: int, z: int, *extra_args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.goto(x: int, y: int, z: int, *extra_args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> goto <block> - Go to a block, wherever it is in the world`
@@ -587,28 +481,15 @@ Go to a coordinate or block
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.goto(100, 70, 100)
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.goto(100, 70, 100)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -625,8 +506,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -651,9 +531,8 @@ Run away from the current goal
 ### When to use this
 - The invert command tells Baritone to head away from the current goal rather than towards it.
 
-### Method signatures
-- Sync: `PyritoneClient.invert(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.invert(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.invert(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> invert - Invert the current goal.`
@@ -662,28 +541,15 @@ Run away from the current goal
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.invert()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.invert()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -700,8 +566,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -725,9 +590,8 @@ Start heading towards the goal
 ### When to use this
 - The path command tells Baritone to head towards the current goal.
 
-### Method signatures
-- Sync: `PyritoneClient.path(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.path(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.path(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> path - Start the pathing.`
@@ -736,28 +600,15 @@ Start heading towards the goal
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.path()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.path()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -774,8 +625,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -799,9 +649,8 @@ Used to get out of caves, mines, ...
 ### When to use this
 - The surface/top command tells Baritone to head towards the closest surface-like area.
 
-### Method signatures
-- Sync: `PyritoneClient.surface(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.surface(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.surface(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> surface - Used to get out of caves, mines, ...`
@@ -811,28 +660,15 @@ Used to get out of caves, mines, ...
 - Domain: `navigation`
 - Aliases: top
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.surface()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.surface()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -849,8 +685,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -874,9 +709,8 @@ Travel in your current direction
 ### When to use this
 - Creates a GoalXZ some amount of blocks in the direction you're currently looking
 
-### Method signatures
-- Sync: `PyritoneClient.thisway(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.thisway(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.thisway(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> thisway <distance> - makes a GoalXZ distance blocks in front of you`
@@ -885,28 +719,15 @@ Travel in your current direction
 - Domain: `navigation`
 - Aliases: forward
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.thisway(200)
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.thisway(200)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -923,8 +744,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -948,9 +768,8 @@ Set a goal to tunnel in your current direction
 ### When to use this
 - The tunnel command sets a goal that tells Baritone to mine completely straight in the direction that you're facing.
 
-### Method signatures
-- Sync: `PyritoneClient.tunnel(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.tunnel(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.tunnel(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> tunnel - No arguments, mines in a 1x2 radius.`
@@ -960,28 +779,15 @@ Set a goal to tunnel in your current direction
 - Domain: `navigation`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.tunnel(2, 1, 64)
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.tunnel(2, 1, 64)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -998,8 +804,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.

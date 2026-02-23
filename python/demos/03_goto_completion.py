@@ -4,7 +4,7 @@ import argparse
 
 from _common import (
     print_json,
-    run_sync_demo,
+    run_async_demo,
     step,
     summarize_pause_update,
     summarize_dispatch,
@@ -21,9 +21,9 @@ parser.add_argument("z", type=int, nargs="?", default=100)
 args = parser.parse_args()
 
 
-def demo(client):
+async def demo(client):
     step(f"Dispatching goto({args.x}, {args.y}, {args.z})")
-    dispatch = client.goto(args.x, args.y, args.z)
+    dispatch = await client.goto(args.x, args.y, args.z)
     print(f"goto dispatch summary: {summarize_dispatch(dispatch)}")
     print_json("goto dispatch", dispatch)
 
@@ -58,7 +58,7 @@ def demo(client):
             print(f"task update: {line}")
             last_line = line
 
-    terminal_event = client.wait_for_task(task_id, on_update=on_update)
+    terminal_event = await client.wait_for_task(task_id, on_update=on_update)
     print(f"terminal event summary: {summarize_event(terminal_event)}")
     print_json("terminal event", terminal_event)
     step(terminal_summary(terminal_event))
@@ -66,4 +66,4 @@ def demo(client):
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_sync_demo("03 - Goto + Completion", demo))
+    raise SystemExit(run_async_demo("03 - Goto + Completion", demo))

@@ -33,32 +33,17 @@ CommandDispatchResult
 
 Extra helpers for local schematic files relative to your Python script.
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.build_file("schematics/base", 100, 70, 100)
-    print(dispatch)
-    terminal = client.build_file_wait("schematics/base", 100, 70, 100)
-    print(terminal)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.build_file("schematics/base", 100, 70, 100)
         print(dispatch)
         terminal = await client.build_file_wait("schematics/base", 100, 70, 100)
         print(terminal)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -76,9 +61,8 @@ Build a schematic
 ### When to use this
 - Build a schematic from a file.
 
-### Method signatures
-- Sync: `PyritoneClient.build(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.build(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.build(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> build <filename> - Loads and builds '<filename>.schematic'`
@@ -88,28 +72,15 @@ Build a schematic
 - Domain: `build`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.build("starter_house")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.build("starter_house")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -126,8 +97,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -151,9 +121,8 @@ Builds the loaded schematic
 ### When to use this
 - Build a schematic currently open in Litematica.
 
-### Method signatures
-- Sync: `PyritoneClient.litematica(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.litematica(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.litematica(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> litematica`
@@ -163,28 +132,15 @@ Builds the loaded schematic
 - Domain: `build`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.litematica()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.litematica()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -201,8 +157,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -224,9 +179,8 @@ WorldEdit-like commands
 ### When to use this
 - The sel command allows you to manipulate Baritone's selections, similarly to WorldEdit.
 
-### Method signatures
-- Sync: `PyritoneClient.sel(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.sel(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.sel(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> sel pos1/p1/1 - Set position 1 to your current position.`
@@ -254,28 +208,15 @@ WorldEdit-like commands
 - Domain: `build`
 - Aliases: selection, s
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.sel("pos1")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.sel("pos1")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -292,8 +233,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.

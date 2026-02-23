@@ -10,17 +10,19 @@ Use the settings namespace to get/set/toggle/reset Baritone settings cleanly.
 ### Example
 
 ```python
+import asyncio
 from pyritone import Client
 
-client = Client()
-await client.connect()
-try:
-    print(await client.settings.allowPlace.set(True))
-    print(await client.settings.allowPlace.get())
-    print(await client.settings.allowPlace.toggle())
-    print(await client.settings.allowPlace.reset())
-finally:
-    await client.close()
+
+async def main() -> None:
+    async with Client() as client:
+        print(await client.settings.allowPlace.set(True))
+        print(await client.settings.allowPlace.get())
+        print(await client.settings.allowPlace.toggle())
+        print(await client.settings.allowPlace.reset())
+
+
+asyncio.run(main())
 ```
 
 ### Return shape

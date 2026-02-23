@@ -26,7 +26,7 @@ cd python
 python demos/01_connect_discovery.py
 ```
 
-All demos use default discovery (`bridge-info.json` / `PYRITONE_*`) and print helpful error hints if the bridge is not ready.
+All demos use async `pyritone.Client` flows (`async with Client() as client`) with default discovery (`bridge-info.json` / `PYRITONE_*`), and print helpful error hints if the bridge is not ready.
 
 ## Demo Catalog
 

@@ -1,5 +1,10 @@
 # Runbook
 
+## Release Prep
+
+- Async-only release checklist: `docs/release-checklist.md`
+- Parity/fallback debt snapshot: `python/docs/release-parity-fallback-report.md`
+
 ## Bridge Not Starting
 
 - Check Minecraft client logs for `pyritone_bridge` startup errors.

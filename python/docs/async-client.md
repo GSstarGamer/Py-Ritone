@@ -15,9 +15,7 @@ from pyritone import Client
 
 
 async def main() -> None:
-    client = Client()
-    await client.connect()
-    try:
+    async with Client() as client:
         print(await client.ping())
         print(await client.status_get())
         await client.status_subscribe()
@@ -36,8 +34,6 @@ async def main() -> None:
         # Cached state/task surfaces
         print(client.state.snapshot)
         print(client.task.id, client.task.state)
-    finally:
-        await client.close()
 
 
 asyncio.run(main())
@@ -79,8 +75,8 @@ Build helpers:
 
 ### Common mistakes
 
-- Calling command methods before `await client.connect()`.
-- Not closing the client in `finally`.
+- Calling command methods before entering `async with Client()`.
+- Leaking client sessions by skipping context management.
 - Passing 1 or 2 coordinates to `build_file` (must be 0 or 3).
 - Assuming relative paths are from cwd; default is caller file directory.
 - Blocking event-loop threads with sync operations while waiting for events.

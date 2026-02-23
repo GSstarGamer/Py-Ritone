@@ -2,7 +2,7 @@
 
 import argparse
 
-from _common import run_sync_demo, step, task_reason
+from _common import run_async_demo, step, task_reason
 
 
 parser = argparse.ArgumentParser(description="Dispatch demo goto and print concise live bridge events")
@@ -71,11 +71,11 @@ def _event_line(index: int, event: dict) -> str:
     )
 
 
-def demo(client):
+async def demo(client):
     step(
         "Dispatching demo goto to an intentionally high Y so recording clearly shows live path/task behavior."
     )
-    dispatch = client.goto(args.x, args.y, args.z)
+    dispatch = await client.goto(args.x, args.y, args.z)
     task_id = dispatch.get("task_id")
     accepted = dispatch.get("accepted")
     print(
@@ -94,7 +94,7 @@ def demo(client):
 
     while args.max_events <= 0 or displayed < args.max_events:
         try:
-            event = client.next_event(timeout=args.timeout)
+            event = await client.next_event(timeout=args.timeout)
         except TimeoutError:
             step(f"No event in {args.timeout:.1f}s window; still listening...")
             continue
@@ -145,4 +145,4 @@ def demo(client):
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_sync_demo("04 - Live Event Feed", demo))
+    raise SystemExit(run_async_demo("04 - Live Event Feed", demo))

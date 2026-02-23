@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from _common import run_sync_demo, step, task_reason, terminal_summary
+from _common import run_async_demo, step, task_reason, terminal_summary
 
 
 parser = argparse.ArgumentParser(description="Build a local schematic file with Pyritone")
@@ -12,13 +12,13 @@ parser.add_argument("--wait", action="store_true", help="Wait until task reaches
 args = parser.parse_args()
 
 
-def demo(client):
+async def demo(client):
     coords = tuple(args.coords) if args.coords else tuple()
 
     step("Setting maxFallHeightNoWater=255 so Baritone allows fall-damage-risk drops in this demo.")
-    client.settings.maxFallHeightNoWater = 255
+    await client.settings.maxFallHeightNoWater.set(255)
 
-    dispatch = client.build_file(args.path, *coords)
+    dispatch = await client.build_file(args.path, *coords)
     task_id = dispatch.get("task_id")
 
     print(f"accepted: {dispatch.get('accepted')}")
@@ -55,10 +55,10 @@ def demo(client):
             print(line)
             last_line = line
 
-    terminal_event = client.wait_for_task(task_id, on_update=on_update)
+    terminal_event = await client.wait_for_task(task_id, on_update=on_update)
     print(terminal_summary(terminal_event))
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_sync_demo("09 - build_file Local Path", demo))
+    raise SystemExit(run_async_demo("09 - build_file Local Path", demo))

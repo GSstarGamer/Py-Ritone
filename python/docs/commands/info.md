@@ -42,9 +42,8 @@ View the current ETA
 ### When to use this
 - The ETA command provides information about the estimated time until the next segment.
 
-### Method signatures
-- Sync: `PyritoneClient.eta(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.eta(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.eta(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> eta - View ETA, if present`
@@ -53,28 +52,15 @@ View the current ETA
 - Domain: `info`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.eta()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.eta()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -110,9 +96,8 @@ Call System.gc()
 ### When to use this
 - Calls System.gc().
 
-### Method signatures
-- Sync: `PyritoneClient.gc(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.gc(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.gc(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> gc`
@@ -121,28 +106,15 @@ Call System.gc()
 - Domain: `info`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.gc()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.gc()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -178,9 +150,8 @@ View all commands or help on specific ones
 ### When to use this
 - Using this command, you can view detailed help information on how to use certain commands of Baritone.
 
-### Method signatures
-- Sync: `PyritoneClient.help(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.help(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.help(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> help - Lists all commands and their short descriptions.`
@@ -190,28 +161,15 @@ View all commands or help on specific ones
 - Domain: `info`
 - Aliases: ?
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.help("goto")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.help("goto")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -247,9 +205,8 @@ View process state information
 ### When to use this
 - The proc command provides miscellaneous information about the process currently controlling Baritone.
 
-### Method signatures
-- Sync: `PyritoneClient.proc(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.proc(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.proc(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> proc - View process information, if present`
@@ -258,28 +215,15 @@ View process state information
 - Domain: `info`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.proc()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.proc()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -315,9 +259,8 @@ Reloads Baritone's cache for this world
 ### When to use this
 - The reloadall command reloads Baritone's world cache.
 
-### Method signatures
-- Sync: `PyritoneClient.reloadall(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.reloadall(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.reloadall(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> reloadall`
@@ -326,28 +269,15 @@ Reloads Baritone's cache for this world
 - Domain: `info`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.reloadall()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.reloadall()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -383,9 +313,8 @@ Fix glitched chunks
 ### When to use this
 - The render command fixes glitched chunk rendering without having to reload all of them.
 
-### Method signatures
-- Sync: `PyritoneClient.render(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.render(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.render(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> render`
@@ -394,28 +323,15 @@ Fix glitched chunks
 - Domain: `info`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.render()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.render()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -451,9 +367,8 @@ Re-cache chunks
 ### When to use this
 - Repack chunks around you. This basically re-caches them.
 
-### Method signatures
-- Sync: `PyritoneClient.repack(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.repack(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.repack(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> repack - Repack chunks.`
@@ -462,28 +377,15 @@ Re-cache chunks
 - Domain: `info`
 - Aliases: rescan
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.repack()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.repack()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -519,9 +421,8 @@ Saves Baritone's cache for this world
 ### When to use this
 - The saveall command saves Baritone's world cache.
 
-### Method signatures
-- Sync: `PyritoneClient.saveall(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.saveall(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.saveall(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> saveall`
@@ -530,28 +431,15 @@ Saves Baritone's cache for this world
 - Domain: `info`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.saveall()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.saveall()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -587,9 +475,8 @@ View the Baritone version
 ### When to use this
 - The version command prints the version of Baritone you're currently running.
 
-### Method signatures
-- Sync: `PyritoneClient.version(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.version(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.version(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> version - View version information, if present`
@@ -598,28 +485,15 @@ View the Baritone version
 - Domain: `info`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.version()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.version()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```

@@ -39,9 +39,15 @@ python -m twine check dist/*
 3. From Python:
 
 ```python
-from pyritone import PyritoneClient
+import asyncio
+from pyritone import Client
 
-with PyritoneClient() as client:
-    print(client.ping())
-    print(client.status_get())
+
+async def main() -> None:
+    async with Client() as client:
+        print(await client.ping())
+        print(await client.status_get())
+
+
+asyncio.run(main())
 ```

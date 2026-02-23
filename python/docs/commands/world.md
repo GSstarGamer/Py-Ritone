@@ -39,9 +39,8 @@ Open click
 ### When to use this
 - Opens click dude
 
-### Method signatures
-- Sync: `PyritoneClient.click(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.click(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.click(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> click`
@@ -50,28 +49,15 @@ Open click
 - Domain: `world`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.click()
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.click()
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -88,8 +74,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -113,9 +98,8 @@ Farm nearby crops
 ### When to use this
 - The farm command starts farming nearby plants. It harvests mature crops and plants new ones.
 
-### Method signatures
-- Sync: `PyritoneClient.farm(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.farm(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.farm(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> farm - farms every crop it can find.`
@@ -126,28 +110,15 @@ Farm nearby crops
 - Domain: `world`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.farm(64)
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.farm(64)
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -164,8 +135,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -189,9 +159,8 @@ Find positions of a certain block
 ### When to use this
 - The find command searches through Baritone's cache and attempts to find the location of the block.
 
-### Method signatures
-- Sync: `PyritoneClient.find(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.find(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.find(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> find <block> [...] - Try finding the listed blocks`
@@ -200,28 +169,15 @@ Find positions of a certain block
 - Domain: `world`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.find("diamond_ore")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.find("diamond_ore")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -238,8 +194,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -263,9 +218,8 @@ Follow entity things
 ### When to use this
 - The follow command tells Baritone to follow certain kinds of entities.
 
-### Method signatures
-- Sync: `PyritoneClient.follow(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.follow(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.follow(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> follow entities - Follows all entities.`
@@ -277,28 +231,15 @@ Follow entity things
 - Domain: `world`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.follow("players")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.follow("players")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -315,8 +256,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -340,9 +280,8 @@ Mine some blocks
 ### When to use this
 - The mine command allows you to tell Baritone to search for and mine individual blocks.
 
-### Method signatures
-- Sync: `PyritoneClient.mine(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.mine(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.mine(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> mine diamond_ore - Mines all diamonds it can find.`
@@ -351,28 +290,15 @@ Mine some blocks
 - Domain: `world`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.mine("diamond_ore")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.mine("diamond_ore")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -389,8 +315,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.
@@ -414,9 +339,8 @@ Pickup items
 ### When to use this
 - Pickup items
 
-### Method signatures
-- Sync: `PyritoneClient.pickup(*args: CommandArg) -> CommandDispatchResult`
-- Async: `AsyncPyritoneClient.pickup(*args: CommandArg) -> CommandDispatchResult`
+### Method signature
+- `Client.pickup(*args: CommandArg) -> CommandDispatchResult`
 
 ### Baritone syntax
 - `> pickup - Pickup anything`
@@ -426,28 +350,15 @@ Pickup items
 - Domain: `world`
 - Aliases: none
 
-### Sync example
-```python
-from pyritone import PyritoneClient
-
-with PyritoneClient() as client:
-    dispatch = client.pickup("diamond")
-    print(dispatch)
-```
-
-### Async example
+### Example
 ```python
 import asyncio
-from pyritone import AsyncPyritoneClient
+from pyritone import Client
 
 async def main() -> None:
-    client = AsyncPyritoneClient()
-    await client.connect()
-    try:
+    async with Client() as client:
         dispatch = await client.pickup("diamond")
         print(dispatch)
-    finally:
-        await client.close()
 
 asyncio.run(main())
 ```
@@ -464,8 +375,7 @@ CommandDispatchResult
 ### Wait pattern
 If `task_id` exists, wait for a terminal event:
 
-- Sync: `terminal = client.wait_for_task(dispatch["task_id"])`
-- Async: `terminal = await client.wait_for_task(dispatch["task_id"])`
+- `terminal = await client.wait_for_task(dispatch["task_id"])`
 
 ### Common mistakes
 - Passing separate string tokens when one argument contains spaces. Use one Python string.

@@ -10,6 +10,7 @@ Usage-first documentation for the `pyritone` package.
 ## Client Guides
 
 - `async-client.md`
+- `migration-from-legacy-aliases.md`
 
 ## Core Workflows
 
@@ -32,3 +33,4 @@ Usage-first documentation for the `pyritone` package.
 
 - `baritone-commands.md`
 - `baritone-typed-parity.md`
+- `release-parity-fallback-report.md`

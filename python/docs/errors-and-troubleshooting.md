@@ -10,18 +10,21 @@ Common failure codes and what to do next.
 ### Example
 
 ```python
+import asyncio
 from pyritone import BridgeError, Client, DiscoveryError
 
-client = Client()
-try:
-    await client.connect()
-    print(await client.status_get())
-except DiscoveryError as error:
-    print("Discovery failed:", error)
-except BridgeError as error:
-    print("Bridge error:", error.code, error.message)
-finally:
-    await client.close()
+
+async def main() -> None:
+    try:
+        async with Client() as client:
+            print(await client.status_get())
+    except DiscoveryError as error:
+        print("Discovery failed:", error)
+    except BridgeError as error:
+        print("Bridge error:", error.code, error.message)
+
+
+asyncio.run(main())
 ```
 
 ### Return shape
