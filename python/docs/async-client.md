@@ -64,6 +64,13 @@ Wave 5 typed Baritone wrappers:
   - e.g. await client.baritone.mine_process().mine_by_name(16, blocks.COAL_ORE)
 - task-producing typed wrappers wait by default
 - *_dispatch variants return TypedTaskHandle for manual wait control
+Wave 7 typed wrappers add:
+- cache: world provider/data/cache/waypoint wrappers + world scanner access
+- selection: selection manager and selection geometry wrappers
+- command: command manager/system/parser-manager/registry wrappers
+- schematic: schematic-system/format wrappers plus typed schematic + mask constructors
+- utils + event: player context, input override, and event-bus listener wrappers
+- parity matrix: python/docs/baritone-typed-parity.md
 
 Build helpers:
 - await build_file(...) -> CommandDispatchResult
@@ -82,3 +89,4 @@ Build helpers:
 
 - `tasks-events-and-waiting.md`
 - `settings-api.md`
+- `baritone-typed-parity.md`

@@ -63,6 +63,7 @@ python demos/01_connect_discovery.py
   - `python/docs/commands/waypoints.md`
   - `python/docs/commands/aliases.md`
 - Raw Baritone appendix: `python/docs/baritone-commands.md`
+- Typed parity matrix: `python/docs/baritone-typed-parity.md`
 
 ## Public API Map
 
@@ -78,6 +79,13 @@ python demos/01_connect_discovery.py
   - `client.baritone` root namespace over Wave 4 typed calls
   - goal constructors under `client.baritone.goals.*`
   - typed process/behavior wrappers (`custom_goal_process`, `mine_process`, `get_to_block_process`, `explore_process`, `pathing_behavior`)
+  - Wave 7 package wrappers:
+    - cache (`world_provider`, `world_scanner`, `waypoint` helpers)
+    - selection (`selection_manager`, `SelectionRef`)
+    - command (`command_manager`, provider `command_system`)
+    - schematic (`schematic_system`, `fill_schematic`, `composite_schematic`, mask helpers)
+    - utils (`player_context`, `input_override_handler`, enum/position helpers)
+    - event (`game_event_handler`, `EventBusRef`)
   - minecraft identifier constants accepted by typed wrappers:
     - `from pyritone.minecraft import blocks, items, entities`
     - e.g. `await mine_process.mine_by_name(64, blocks.DIAMOND_ORE)`

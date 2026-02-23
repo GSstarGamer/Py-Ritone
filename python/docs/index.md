@@ -31,3 +31,4 @@ Usage-first documentation for the `pyritone` package.
 ## Source Appendix
 
 - `baritone-commands.md`
+- `baritone-typed-parity.md`
