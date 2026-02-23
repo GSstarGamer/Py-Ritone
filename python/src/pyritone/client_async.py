@@ -14,6 +14,7 @@ from typing import Any, Awaitable, Callable
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
 
+from .baritone import BaritoneNamespace
 from .commands.async_build import AsyncBuildCommands
 from .commands.async_control import AsyncControlCommands
 from .commands.async_info import AsyncInfoCommands
@@ -211,6 +212,7 @@ class Client(
         self.settings = AsyncSettingsNamespace(self)
         self.state = ClientStateCache()
         self.task = _TaskNamespace(self)
+        self.baritone = BaritoneNamespace(self)
 
     async def __aenter__(self) -> "Client":
         await self.connect()

@@ -74,6 +74,11 @@ python demos/01_connect_discovery.py
 - Low-level methods:
   - `ping`, `status_get`, `status_subscribe`, `status_unsubscribe`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
   - Typed API substrate: `api_metadata_get`, `api_construct`, `api_invoke`
+- Typed Baritone wrappers:
+  - `client.baritone` root namespace over Wave 4 typed calls
+  - goal constructors under `client.baritone.goals.*`
+  - typed process/behavior wrappers (`custom_goal_process`, `mine_process`, `get_to_block_process`, `explore_process`, `pathing_behavior`)
+  - task-producing typed methods wait by default; `_dispatch` returns `TypedTaskHandle`
 - Command wrappers:
   - All top-level Baritone commands exposed as methods.
 - Local schematic helpers:

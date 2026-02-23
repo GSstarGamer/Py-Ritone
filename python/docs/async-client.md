@@ -56,6 +56,11 @@ Typed API methods are available via:
 - await api_construct(...)
 - await api_invoke(...)
 Typed calls may return RemoteRef handles for non-JSON values.
+Wave 5 typed Baritone wrappers:
+- client.baritone.goals.* constructors for Goal objects
+- await client.baritone.custom_goal_process() / mine_process() / get_to_block_process() / explore_process()
+- task-producing typed wrappers wait by default
+- *_dispatch variants return TypedTaskHandle for manual wait control
 
 Build helpers:
 - await build_file(...) -> CommandDispatchResult

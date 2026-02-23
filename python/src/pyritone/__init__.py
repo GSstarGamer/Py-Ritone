@@ -1,5 +1,6 @@
 import logging
 
+from .baritone import BaritoneNamespace, GoalRef, TypedTaskHandle, TypedTaskResult
 from .client_async import AsyncPyritoneClient, Client
 from .client_sync import PyritoneClient
 from .commands import ALIAS_TO_CANONICAL, BARITONE_VERSION, COMMAND_SPECS, CommandArg, CommandDispatchResult
@@ -9,6 +10,7 @@ __all__ = [
     "ALIAS_TO_CANONICAL",
     "AsyncPyritoneClient",
     "BARITONE_VERSION",
+    "BaritoneNamespace",
     "BridgeError",
     "BridgeInfo",
     "Client",
@@ -16,8 +18,11 @@ __all__ = [
     "CommandArg",
     "CommandDispatchResult",
     "DiscoveryError",
+    "GoalRef",
     "PyritoneClient",
     "RemoteRef",
+    "TypedTaskHandle",
+    "TypedTaskResult",
     "TypedCallError",
 ]
 

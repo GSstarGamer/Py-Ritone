@@ -7,6 +7,7 @@ import pytest
 from websockets.asyncio.server import ServerConnection, serve
 
 from pyritone.client_async import AsyncPyritoneClient
+from pyritone.baritone import TypedTaskHandle
 from pyritone.models import BridgeError, RemoteRef, TypedCallError
 from pyritone.protocol import decode_message, encode_message
 
@@ -1024,6 +1025,499 @@ async def test_wait_for_timeout():
         await client.connect()
         with pytest.raises(TimeoutError):
             await client.wait_for("task.completed", timeout=0.05)
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_baritone_custom_goal_set_goal_and_path_waits_by_default():
+    observed_invokes: list[dict[str, Any]] = []
+    is_pathing_calls = 0
+
+    async def handler(websocket: ServerConnection):
+        nonlocal is_pathing_calls
+
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.construct":
+                assert request["params"] == {
+                    "type": "baritone.api.pathing.goals.GoalBlock",
+                    "args": [10, 64, 10],
+                    "parameter_types": ["int", "int", "int"],
+                }
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "value": {
+                                    "$pyritone_ref": "goal-1",
+                                    "java_type": "baritone.api.pathing.goals.GoalBlock",
+                                },
+                                "java_type": "baritone.api.pathing.goals.GoalBlock",
+                            },
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.invoke":
+                params = request["params"]
+                observed_invokes.append(params)
+                target = params["target"]
+
+                if target == {"kind": "root", "name": "baritone"} and params["method"] == "getCustomGoalProcess":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {
+                                        "$pyritone_ref": "proc-1",
+                                        "java_type": "baritone.api.process.ICustomGoalProcess",
+                                    },
+                                    "return_type": "baritone.api.process.ICustomGoalProcess",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "proc-1"} and params["method"] == "setGoalAndPath":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": None, "return_type": "void"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "root", "name": "baritone"} and params["method"] == "getPathingBehavior":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {
+                                        "$pyritone_ref": "pathing-1",
+                                        "java_type": "baritone.api.behavior.IPathingBehavior",
+                                    },
+                                    "return_type": "baritone.api.behavior.IPathingBehavior",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-1"} and params["method"] == "isPathing":
+                    is_pathing_calls += 1
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": is_pathing_calls == 1, "return_type": "boolean"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-1"} and params["method"] == "getInProgress":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": None, "return_type": "java.util.Optional"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-1"} and params["method"] == "hasPath":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": False, "return_type": "boolean"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-1"} and params["method"] == "getGoal":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": None, "return_type": "baritone.api.pathing.goals.Goal"},
+                            }
+                        )
+                    )
+                    continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        goal = await client.baritone.goals.block(10, 64, 10)
+        process = await client.baritone.custom_goal_process()
+        result = await process.set_goal_and_path(goal, timeout=1.0, poll_interval=0.01, startup_timeout=0.2)
+
+        assert result.started is True
+        assert result.action == "ICustomGoalProcess.setGoalAndPath"
+        assert result.busy is False
+        assert is_pathing_calls >= 2
+
+        invoke_calls = [call for call in observed_invokes if call["method"] == "setGoalAndPath"]
+        assert invoke_calls == [
+            {
+                "target": {"kind": "ref", "id": "proc-1"},
+                "method": "setGoalAndPath",
+                "args": [{"$pyritone_ref": "goal-1", "java_type": "baritone.api.pathing.goals.GoalBlock"}],
+                "parameter_types": ["baritone.api.pathing.goals.Goal"],
+            }
+        ]
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_baritone_explore_dispatch_returns_handle_without_waiting():
+    observed_invokes: list[dict[str, Any]] = []
+    is_pathing_calls = 0
+
+    async def handler(websocket: ServerConnection):
+        nonlocal is_pathing_calls
+
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.invoke":
+                params = request["params"]
+                observed_invokes.append(params)
+                target = params["target"]
+
+                if target == {"kind": "root", "name": "baritone"} and params["method"] == "getExploreProcess":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {
+                                        "$pyritone_ref": "explore-1",
+                                        "java_type": "baritone.api.process.IExploreProcess",
+                                    },
+                                    "return_type": "baritone.api.process.IExploreProcess",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "explore-1"} and params["method"] == "explore":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": None, "return_type": "void"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "root", "name": "baritone"} and params["method"] == "getPathingBehavior":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {
+                                        "$pyritone_ref": "pathing-2",
+                                        "java_type": "baritone.api.behavior.IPathingBehavior",
+                                    },
+                                    "return_type": "baritone.api.behavior.IPathingBehavior",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-2"} and params["method"] == "isPathing":
+                    is_pathing_calls += 1
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": is_pathing_calls == 1, "return_type": "boolean"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-2"} and params["method"] in {"getInProgress", "getGoal"}:
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": None, "return_type": "java.lang.Object"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-2"} and params["method"] == "hasPath":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": False, "return_type": "boolean"},
+                            }
+                        )
+                    )
+                    continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        process = await client.baritone.explore_process()
+
+        handle = await process.explore_dispatch(100, -25)
+        assert isinstance(handle, TypedTaskHandle)
+        assert is_pathing_calls == 0
+
+        result = await handle.wait(timeout=1.0, poll_interval=0.01, startup_timeout=0.2)
+        assert result.started is True
+        assert result.action == "IExploreProcess.explore"
+        assert is_pathing_calls >= 2
+
+        explore_calls = [call for call in observed_invokes if call["method"] == "explore"]
+        assert explore_calls == [
+            {
+                "target": {"kind": "ref", "id": "explore-1"},
+                "method": "explore",
+                "args": [100, -25],
+                "parameter_types": ["int", "int"],
+            }
+        ]
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_baritone_pathing_calc_wrappers_use_explicit_signatures():
+    observed_invokes: list[dict[str, Any]] = []
+
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.invoke":
+                params = request["params"]
+                observed_invokes.append(params)
+                target = params["target"]
+
+                if target == {"kind": "root", "name": "baritone"} and params["method"] == "getPathingBehavior":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {
+                                        "$pyritone_ref": "pathing-3",
+                                        "java_type": "baritone.api.behavior.IPathingBehavior",
+                                    },
+                                    "return_type": "baritone.api.behavior.IPathingBehavior",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "pathing-3"} and params["method"] == "getInProgress":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {
+                                        "$pyritone_ref": "finder-1",
+                                        "java_type": "baritone.api.pathing.calc.IPathFinder",
+                                    },
+                                    "return_type": "java.util.Optional",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "finder-1"} and params["method"] == "calculate":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {
+                                        "$pyritone_ref": "calc-1",
+                                        "java_type": "baritone.api.utils.PathCalculationResult",
+                                    },
+                                    "return_type": "baritone.api.utils.PathCalculationResult",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "calc-1"} and params["method"] == "getType":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": "SUCCESS_SEGMENT", "return_type": "java.lang.String"},
+                            }
+                        )
+                    )
+                    continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        behavior = await client.baritone.pathing_behavior()
+        finder = await behavior.in_progress()
+        assert finder is not None
+
+        calc_result = await finder.calculate(250, 500)
+        assert await calc_result.result_type() == "SUCCESS_SEGMENT"
+
+        calculate_calls = [call for call in observed_invokes if call["method"] == "calculate"]
+        assert calculate_calls == [
+            {
+                "target": {"kind": "ref", "id": "finder-1"},
+                "method": "calculate",
+                "args": [250, 500],
+                "parameter_types": ["long", "long"],
+            }
+        ]
     finally:
         await client.close()
         server.close()
