@@ -28,16 +28,60 @@ Each demo uses default discovery (`bridge-info.json` / `PYRITONE_*`) and fails g
 
 | Script | What this demo proves | Run command | Suggested video filename | Video URL |
 |---|---|---|---|---|
-| `01_connect_discovery.py` | Zero-setup discovery + connection/auth + baseline ping/status | `python demos/01_connect_discovery.py` | `01-connect-discovery.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/01-connect-discovery.mp4) |
-| `02_basic_commands.py` | High-level wrappers plus raw `execute(...)` fallback | `python demos/02_basic_commands.py` | `02-basic-commands.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/02-basic-commands.mp4) |
-| `03_goto_completion.py` | `goto(...)` dispatch + `wait_for_task(...)` with pause/resume update logs | `python demos/03_goto_completion.py 100 70 100` | `03-goto-completion.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/03-goto-completion.mp4) |
-| `04_live_event_feed.py` | Auto-dispatches a high-Y `goto`, then prints concise live task/path event lines | `python demos/04_live_event_feed.py --x 0 --y 1000 --z 0 --max-events 30` | `04-live-event-feed.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/04-live-event-feed.mp4) |
-| `05_cancel_task.py` | Start task, cancel by task id, observe terminal event | `python demos/05_cancel_task.py --delay 1.5` | `05-cancel-task.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/05-cancel-task.mp4) |
-| `06_settings_mode_switch.py` | Sync settings API: property assignment + get/set/toggle/reset + presets | `python demos/06_settings_mode_switch.py --mode builder` | `06-settings-mode-switch.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/06-settings-mode-switch.mp4) |
-| `07_mini_console.py` | Interactive mini console with dynamic wrapper dispatch | `python demos/07_mini_console.py` | `07-mini-console.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/07-mini-console.mp4) |
-| `08_async_workflow.py` | Async-only concurrency: heartbeat pings while `wait_for_task(...)` prints pause/resume updates | `python demos/08_async_workflow.py 0 1000 0 --cancel-after 6 --heartbeat-interval 1.5` | `08-async-workflow.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/08-async-workflow.mp4) |
-| `09_build_file_local_path.py` | `build_file(...)` + local path resolution + pause-aware wait logs | `python demos/09_build_file_local_path.py "schematics/base" --coords 100 70 100 --wait` | `09-build-file-local-path.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/09-build-file-local-path.mp4) |
-| `10_cli_entrypoints.py` | CLI usage via subprocess (`ping`, `status`, `exec`, `cancel`) | `python demos/10_cli_entrypoints.py` | `10-cli-entrypoints.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/10-cli-entrypoints.mp4) |
+| `01_connect_discovery.py` | Zero-setup discovery + connection/auth + baseline ping/status | `python demos/01_connect_discovery.py` | `01-connect-discovery.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/01-connect-discovery.mp4) |
+| `02_basic_commands.py` | High-level wrappers plus raw `execute(...)` fallback | `python demos/02_basic_commands.py` | `02-basic-commands.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/02-basic-commands.mp4) |
+| `03_goto_completion.py` | `goto(...)` dispatch + `wait_for_task(...)` with pause/resume update logs | `python demos/03_goto_completion.py 100 70 100` | `03-goto-completion.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/03-goto-completion.mp4) |
+| `04_live_event_feed.py` | Auto-dispatches a high-Y `goto`, then prints concise live task/path event lines | `python demos/04_live_event_feed.py --x 0 --y 1000 --z 0 --max-events 30` | `04-live-event-feed.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/04-live-event-feed.mp4) |
+| `05_cancel_task.py` | Start task, cancel by task id, observe terminal event | `python demos/05_cancel_task.py --delay 1.5` | `05-cancel-task.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/05-cancel-task.mp4) |
+| `06_settings_mode_switch.py` | Sync settings API: property assignment + get/set/toggle/reset + presets | `python demos/06_settings_mode_switch.py --mode builder` | `06-settings-mode-switch.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/06-settings-mode-switch.mp4) |
+| `07_mini_console.py` | Interactive mini console with dynamic wrapper dispatch | `python demos/07_mini_console.py` | `07-mini-console.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/07-mini-console.mp4) |
+| `08_async_workflow.py` | Async-only concurrency: heartbeat pings while `wait_for_task(...)` prints pause/resume updates | `python demos/08_async_workflow.py 0 1000 0 --cancel-after 6 --heartbeat-interval 1.5` | `08-async-workflow.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/08-async-workflow.mp4) |
+| `09_build_file_local_path.py` | `build_file(...)` + local path resolution + pause-aware wait logs | `python demos/09_build_file_local_path.py "schematics/base" --coords 100 70 100 --wait` | `09-build-file-local-path.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/09-build-file-local-path.mp4) |
+| `10_cli_entrypoints.py` | CLI usage via subprocess (`ping`, `status`, `exec`, `cancel`) | `python demos/10_cli_entrypoints.py` | `10-cli-entrypoints.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/10-cli-entrypoints.mp4) |
+
+## Inline Video Previews
+
+If your GitHub theme/browser blocks inline players, use the `Watch` links above.
+
+### 01 - Connect Discovery
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/01-connect-discovery.mp4" controls width="900"></video>
+
+### 02 - Basic Commands
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/02-basic-commands.mp4" controls width="900"></video>
+
+### 03 - Goto Completion
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/03-goto-completion.mp4" controls width="900"></video>
+
+### 04 - Live Event Feed
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/04-live-event-feed.mp4" controls width="900"></video>
+
+### 05 - Cancel Task
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/05-cancel-task.mp4" controls width="900"></video>
+
+### 06 - Settings Mode Switch
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/06-settings-mode-switch.mp4" controls width="900"></video>
+
+### 07 - Mini Console
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/07-mini-console.mp4" controls width="900"></video>
+
+### 08 - Async Workflow
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/08-async-workflow.mp4" controls width="900"></video>
+
+### 09 - Build File Local Path
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/09-build-file-local-path.mp4" controls width="900"></video>
+
+### 10 - CLI Entrypoints
+
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/10-cli-entrypoints.mp4" controls width="900"></video>
 
 ## Feature Coverage Matrix
 
