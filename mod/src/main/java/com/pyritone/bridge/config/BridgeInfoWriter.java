@@ -22,6 +22,9 @@ public final class BridgeInfoWriter {
         JsonObject payload = new JsonObject();
         payload.addProperty("host", host);
         payload.addProperty("port", port);
+        payload.addProperty("transport", "websocket");
+        payload.addProperty("ws_path", BridgeConfig.DEFAULT_WS_PATH);
+        payload.addProperty("ws_url", "ws://" + host + ":" + port + BridgeConfig.DEFAULT_WS_PATH);
         payload.addProperty("token", token);
         payload.addProperty("protocol_version", protocolVersion);
         payload.addProperty("server_version", serverVersion);

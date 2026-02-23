@@ -7,7 +7,7 @@ import com.pyritone.bridge.config.BridgeConfig;
 import com.pyritone.bridge.config.BridgeInfoWriter;
 import com.pyritone.bridge.config.TokenManager;
 import com.pyritone.bridge.net.ProtocolCodec;
-import com.pyritone.bridge.net.SocketBridgeServer;
+import com.pyritone.bridge.net.WebSocketBridgeServer;
 import com.pyritone.bridge.runtime.BaritoneGateway;
 import com.pyritone.bridge.runtime.TaskRegistry;
 import com.pyritone.bridge.runtime.TaskLifecycleResolver;
@@ -46,7 +46,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private final WatchPatternRegistry watchPatternRegistry = new WatchPatternRegistry();
 
     private BaritoneGateway baritoneGateway;
-    private SocketBridgeServer server;
+    private WebSocketBridgeServer server;
 
     @Override
     public void onInitializeClient() {
@@ -144,9 +144,10 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     }
 
     private void startBridgeServer() {
-        this.server = new SocketBridgeServer(
+        this.server = new WebSocketBridgeServer(
             BridgeConfig.DEFAULT_HOST,
             BridgeConfig.DEFAULT_PORT,
+            BridgeConfig.DEFAULT_WS_PATH,
             this::handleRequest,
             LOGGER
         );
@@ -173,7 +174,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         }
     }
 
-    private JsonObject handleRequest(SocketBridgeServer.ClientSession session, JsonObject request) {
+    private JsonObject handleRequest(WebSocketBridgeServer.ClientSession session, JsonObject request) {
         String id = ProtocolCodec.requestId(request);
         try {
             String type = asString(request, "type");
@@ -205,7 +206,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         }
     }
 
-    private JsonObject handleAuthLogin(String id, JsonObject params, SocketBridgeServer.ClientSession session) {
+    private JsonObject handleAuthLogin(String id, JsonObject params, WebSocketBridgeServer.ClientSession session) {
         String candidate = asString(params, "token");
         if (candidate == null || candidate.isBlank()) {
             return ProtocolCodec.errorResponse(id, "BAD_REQUEST", "Missing token");
@@ -236,7 +237,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         return ProtocolCodec.successResponse(id, result);
     }
 
-    private JsonObject handlePing(String id, SocketBridgeServer.ClientSession session) {
+    private JsonObject handlePing(String id, WebSocketBridgeServer.ClientSession session) {
         if (session.isAuthenticated()) {
             emitPyritoneNotice("Pong");
         }
@@ -247,7 +248,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         return ProtocolCodec.successResponse(id, result);
     }
 
-    private JsonObject handleStatus(String id, SocketBridgeServer.ClientSession session) {
+    private JsonObject handleStatus(String id, WebSocketBridgeServer.ClientSession session) {
         JsonObject result = new JsonObject();
         result.addProperty("protocol_version", BridgeConfig.PROTOCOL_VERSION);
         result.addProperty("server_version", serverVersion);
@@ -472,7 +473,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     }
 
     private void publishEvent(String eventName, JsonObject data) {
-        SocketBridgeServer currentServer = this.server;
+        WebSocketBridgeServer currentServer = this.server;
         if (currentServer == null || !currentServer.isRunning()) {
             return;
         }

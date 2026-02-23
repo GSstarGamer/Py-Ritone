@@ -8,7 +8,8 @@ public final class BridgeConfig {
     public static final String MOD_ID = "pyritone_bridge";
     public static final String DEFAULT_HOST = "127.0.0.1";
     public static final int DEFAULT_PORT = 27841;
-    public static final int PROTOCOL_VERSION = 1;
+    public static final String DEFAULT_WS_PATH = "/ws";
+    public static final int PROTOCOL_VERSION = 2;
     public static final String TOKEN_FILE_NAME = "token.txt";
     public static final String BRIDGE_INFO_FILE_NAME = "bridge-info.json";
 
