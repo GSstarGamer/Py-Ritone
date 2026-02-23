@@ -4,6 +4,7 @@ from .baritone import BaritoneNamespace, GoalRef, TypedTaskHandle, TypedTaskResu
 from .client_async import AsyncPyritoneClient, Client
 from .client_sync import PyritoneClient
 from .commands import ALIAS_TO_CANONICAL, BARITONE_VERSION, COMMAND_SPECS, CommandArg, CommandDispatchResult
+from . import minecraft
 from .models import BridgeError, BridgeInfo, DiscoveryError, RemoteRef, TypedCallError
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "TypedTaskHandle",
     "TypedTaskResult",
     "TypedCallError",
+    "minecraft",
 ]
 
 logging.getLogger("pyritone").addHandler(logging.NullHandler())

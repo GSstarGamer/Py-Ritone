@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 from uuid import uuid4
 
+from .minecraft._identifiers import BlockLike, coerce_block_id
 from .models import BridgeError, RemoteRef
 
 if TYPE_CHECKING:
@@ -287,14 +288,14 @@ class CustomGoalProcessRef(_ProcessRef):
 
 
 class GetToBlockProcessRef(_ProcessRef):
-    async def get_to_block_dispatch(self, block: RemoteRef | _RemoteWrapper | str) -> TypedTaskHandle:
-        block_arg = await self._baritone.block_optional_meta(block) if isinstance(block, str) else _unwrap_ref(block)
+    async def get_to_block_dispatch(self, block: RemoteRef | _RemoteWrapper | BlockLike) -> TypedTaskHandle:
+        block_arg = await self._baritone.block_optional_meta(coerce_block_id(block)) if isinstance(block, str) else _unwrap_ref(block)
         await self._invoke("getToBlock", block_arg, parameter_types=["baritone.api.utils.BlockOptionalMeta"])
         return self._new_task_handle("IGetToBlockProcess.getToBlock")
 
     async def get_to_block(
         self,
-        block: RemoteRef | _RemoteWrapper | str,
+        block: RemoteRef | _RemoteWrapper | BlockLike,
         timeout: float | None = None,
         *,
         poll_interval: float = 0.1,
@@ -305,13 +306,14 @@ class GetToBlockProcessRef(_ProcessRef):
 
 
 class MineProcessRef(_ProcessRef):
-    async def mine_by_name_dispatch(self, quantity: int, *block_names: str) -> TypedTaskHandle:
+    async def mine_by_name_dispatch(self, quantity: int, *block_names: BlockLike) -> TypedTaskHandle:
         if not block_names:
             raise ValueError("mine_by_name_dispatch requires at least one block name")
+        resolved_names = [coerce_block_id(name) for name in block_names]
         await self._invoke(
             "mineByName",
             int(quantity),
-            list(block_names),
+            resolved_names,
             parameter_types=["int", "java.lang.String[]"],
         )
         return self._new_task_handle("IMineProcess.mineByName")
@@ -319,7 +321,7 @@ class MineProcessRef(_ProcessRef):
     async def mine_by_name(
         self,
         quantity: int,
-        *block_names: str,
+        *block_names: BlockLike,
         timeout: float | None = None,
         poll_interval: float = 0.1,
         startup_timeout: float = 1.0,
@@ -619,10 +621,10 @@ class BaritoneNamespace:
             context="net.minecraft.class_2338",
         )
 
-    async def block_optional_meta(self, value: str) -> RemoteRef:
+    async def block_optional_meta(self, value: BlockLike) -> RemoteRef:
         return await self._construct_ref(
             "baritone.api.utils.BlockOptionalMeta",
-            value,
+            coerce_block_id(value),
             parameter_types=["java.lang.String"],
             context="baritone.api.utils.BlockOptionalMeta",
         )

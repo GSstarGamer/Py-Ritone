@@ -59,6 +59,9 @@ Typed calls may return RemoteRef handles for non-JSON values.
 Wave 5 typed Baritone wrappers:
 - client.baritone.goals.* constructors for Goal objects
 - await client.baritone.custom_goal_process() / mine_process() / get_to_block_process() / explore_process()
+- minecraft ID constants:
+  - from pyritone.minecraft import blocks, items, entities
+  - e.g. await client.baritone.mine_process().mine_by_name(16, blocks.COAL_ORE)
 - task-producing typed wrappers wait by default
 - *_dispatch variants return TypedTaskHandle for manual wait control
 

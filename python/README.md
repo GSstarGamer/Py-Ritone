@@ -78,6 +78,9 @@ python demos/01_connect_discovery.py
   - `client.baritone` root namespace over Wave 4 typed calls
   - goal constructors under `client.baritone.goals.*`
   - typed process/behavior wrappers (`custom_goal_process`, `mine_process`, `get_to_block_process`, `explore_process`, `pathing_behavior`)
+  - minecraft identifier constants accepted by typed wrappers:
+    - `from pyritone.minecraft import blocks, items, entities`
+    - e.g. `await mine_process.mine_by_name(64, blocks.DIAMOND_ORE)`
   - task-producing typed methods wait by default; `_dispatch` returns `TypedTaskHandle`
 - Command wrappers:
   - All top-level Baritone commands exposed as methods.
