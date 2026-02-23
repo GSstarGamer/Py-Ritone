@@ -57,14 +57,6 @@ python demos/01_connect_discovery.py
   - `09` local-path build helper: `python demos/09_build_file_local_path.py "house.schem" --coords 100 -60 100 --wait`
   - `10` CLI entrypoints: `python demos/10_cli_entrypoints.py`
 
-### Featured Video Links
-
-07 mini console:
-https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/07-mini-console.mp4
-
-09 local-path build helper:
-https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/09-build-file-local-path.mp4
-
 ## One-Click Dev Client
 
 - Double-click `run_dev_client.bat` at repo root, or run it in terminal:
