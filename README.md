@@ -57,6 +57,13 @@ python demos/01_connect_discovery.py
   - `09` local-path build helper: `python demos/09_build_file_local_path.py "house.schem" --coords 100 -60 100 --wait`
   - `10` CLI entrypoints: `python demos/10_cli_entrypoints.py`
 
+<<<<<<< HEAD
+=======
+
+<video src="https://files.rionnag.net/raw/07-mini-console-7a791ce6.mp4"></video>
+
+
+>>>>>>> 5d8b4d099447e99a377e7cf9e8a857e8395bc7a8
 ## One-Click Dev Client
 
 - Double-click `run_dev_client.bat` at repo root, or run it in terminal:
