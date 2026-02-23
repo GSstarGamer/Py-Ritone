@@ -60,10 +60,10 @@ python demos/01_connect_discovery.py
 ### Featured Video Links
 
 07 mini console:
-https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/07-mini-console.mp4
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/07-mini-console.mp4"></video>
 
 09 local-path build helper:
-https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/09-build-file-local-path.mp4
+<video src="https://github.com/GSstarGamer/Py-Ritone/raw/main/python/demos/09-build-file-local-path.mp4"></video>
 
 ## One-Click Dev Client
 
