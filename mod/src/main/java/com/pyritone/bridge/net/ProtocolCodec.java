@@ -39,9 +39,16 @@ public final class ProtocolCodec {
     }
 
     public static JsonObject errorResponse(String id, String code, String message) {
+        return errorResponse(id, code, message, null);
+    }
+
+    public static JsonObject errorResponse(String id, String code, String message, JsonElement data) {
         JsonObject error = new JsonObject();
         error.addProperty("code", code);
         error.addProperty("message", message);
+        if (data != null && !data.isJsonNull()) {
+            error.add("data", data);
+        }
 
         JsonObject response = new JsonObject();
         response.addProperty("type", "response");

@@ -14,6 +14,8 @@ import com.pyritone.bridge.runtime.TaskRegistry;
 import com.pyritone.bridge.runtime.TaskLifecycleResolver;
 import com.pyritone.bridge.runtime.TaskSnapshot;
 import com.pyritone.bridge.runtime.TaskState;
+import com.pyritone.bridge.runtime.TypedApiException;
+import com.pyritone.bridge.runtime.TypedApiService;
 import com.pyritone.bridge.runtime.WatchPatternRegistry;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -36,6 +38,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.Callable;
 
 public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger(BridgeConfig.MOD_ID);
@@ -47,6 +54,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private final TaskLifecycleResolver taskLifecycleResolver = new TaskLifecycleResolver();
     private final WatchPatternRegistry watchPatternRegistry = new WatchPatternRegistry();
     private final StatusSubscriptionRegistry statusSubscriptionRegistry = new StatusSubscriptionRegistry();
+    private final TypedApiService typedApiService = new TypedApiService(PyritoneBridgeClientMod.class.getClassLoader());
 
     private BaritoneGateway baritoneGateway;
     private WebSocketBridgeServer server;
@@ -61,6 +69,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
         this.token = TokenManager.loadOrCreateToken(LOGGER);
         this.baritoneGateway = new BaritoneGateway(LOGGER, this::onPathEvent);
+        this.typedApiService.registerRoot("baritone", "baritone.api.IBaritone", this::resolvePrimaryBaritone);
         this.baritoneGateway.tickApplyPyritoneChatBranding();
 
         startBridgeServer();
@@ -174,6 +183,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
     private void shutdownBridgeServer() {
         statusSubscriptionRegistry.clear();
+        typedApiService.clear();
         if (this.server != null) {
             this.server.close();
         }
@@ -203,6 +213,9 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
                 case "status.get" -> handleStatus(id, session);
                 case "status.subscribe" -> handleStatusSubscribe(id, session);
                 case "status.unsubscribe" -> handleStatusUnsubscribe(id, session);
+                case "api.metadata.get" -> handleApiMetadataGet(id, params, session);
+                case "api.construct" -> handleApiConstruct(id, params, session);
+                case "api.invoke" -> handleApiInvoke(id, params, session);
                 case "baritone.execute" -> handleBaritoneExecute(id, params);
                 case "task.cancel" -> handleTaskCancel(id);
                 default -> ProtocolCodec.errorResponse(id, "METHOD_NOT_FOUND", "Unknown method: " + method);
@@ -277,6 +290,18 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         result.addProperty("subscribed", false);
         result.addProperty("was_subscribed", wasSubscribed);
         return ProtocolCodec.successResponse(id, result);
+    }
+
+    private JsonObject handleApiMetadataGet(String id, JsonObject params, WebSocketBridgeServer.ClientSession session) {
+        return handleTypedApiRequest(id, () -> typedApiService.metadata(session.sessionId(), params));
+    }
+
+    private JsonObject handleApiConstruct(String id, JsonObject params, WebSocketBridgeServer.ClientSession session) {
+        return handleTypedApiRequest(id, () -> typedApiService.construct(session.sessionId(), params));
+    }
+
+    private JsonObject handleApiInvoke(String id, JsonObject params, WebSocketBridgeServer.ClientSession session) {
+        return handleTypedApiRequest(id, () -> typedApiService.invoke(session.sessionId(), params));
     }
 
     private JsonObject buildStatusPayload(WebSocketBridgeServer.ClientSession session) {
@@ -374,6 +399,54 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         return ProtocolCodec.successResponse(id, result);
     }
 
+    private JsonObject handleTypedApiRequest(String id, Callable<JsonObject> action) {
+        try {
+            JsonObject result = runOnClientThread(action);
+            return ProtocolCodec.successResponse(id, result);
+        } catch (TypedApiException exception) {
+            return ProtocolCodec.errorResponse(id, exception.code(), exception.getMessage(), exception.details());
+        } catch (TimeoutException exception) {
+            return ProtocolCodec.errorResponse(id, "INTERNAL_ERROR", "Timed out waiting for client thread");
+        } catch (Exception exception) {
+            LOGGER.debug("Typed API request failed", exception);
+            return ProtocolCodec.errorResponse(id, "INTERNAL_ERROR", "Typed API invocation failed");
+        }
+    }
+
+    private JsonObject runOnClientThread(Callable<JsonObject> action) throws Exception {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            throw new IllegalStateException("Minecraft client is unavailable");
+        }
+
+        if (client.isOnThread()) {
+            return action.call();
+        }
+
+        try {
+            return client.submit(() -> {
+                try {
+                    return action.call();
+                } catch (Exception exception) {
+                    throw new CompletionException(exception);
+                }
+            }).get(5, TimeUnit.SECONDS);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof CompletionException completion && completion.getCause() != null) {
+                cause = completion.getCause();
+            }
+            if (cause instanceof Exception typed) {
+                throw typed;
+            }
+            throw new RuntimeException(cause);
+        }
+    }
+
+    private Object resolvePrimaryBaritone() throws ReflectiveOperationException {
+        return baritoneGateway.resolvePrimaryBaritoneForTypedApi();
+    }
+
     public boolean forceCancelActiveTaskFromPyritoneCommand() {
         Optional<TaskSnapshot> active = taskRegistry.active();
         if (active.isEmpty()) {
@@ -456,17 +529,20 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         WebSocketBridgeServer currentServer = this.server;
         if (currentServer == null || !currentServer.isRunning()) {
             statusSubscriptionRegistry.clear();
+            typedApiService.clear();
             return;
         }
 
         Set<WebSocketBridgeServer.ClientSession> sessions = currentServer.sessionSnapshot();
         if (sessions.isEmpty()) {
             statusSubscriptionRegistry.clear();
+            typedApiService.clear();
             return;
         }
 
         Set<String> activeSessionIds = sessions.stream().map(WebSocketBridgeServer.ClientSession::sessionId).collect(java.util.stream.Collectors.toSet());
         statusSubscriptionRegistry.retainSessions(activeSessionIds);
+        typedApiService.retainSessions(activeSessionIds);
 
         long nowMs = System.currentTimeMillis();
         for (WebSocketBridgeServer.ClientSession session : sessions) {

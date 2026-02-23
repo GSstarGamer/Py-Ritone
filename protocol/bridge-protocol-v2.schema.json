@@ -29,7 +29,8 @@
           "type": ["object", "null"],
           "properties": {
             "code": { "type": "string" },
-            "message": { "type": "string" }
+            "message": { "type": "string" },
+            "data": { "type": ["object", "null"] }
           },
           "additionalProperties": true
         }

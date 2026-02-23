@@ -78,6 +78,10 @@ public final class BaritoneGateway {
         return onClientThread(this::activitySnapshotOnClientThread, ActivitySnapshot.idle());
     }
 
+    public Object resolvePrimaryBaritoneForTypedApi() throws ReflectiveOperationException {
+        return getPrimaryBaritone();
+    }
+
     private Outcome executeRawOnClientThread(String command) {
         if (!isClientReady()) {
             return new Outcome(false, "Client is not in a world");

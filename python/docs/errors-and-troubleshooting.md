@@ -31,6 +31,10 @@ BridgeError:
 - code: protocol error code
 - message: server message
 - payload: full response envelope
+- details: optional structured error data (`error.data`)
+
+TypedCallError (for `api.*` methods):
+- same fields as BridgeError with typed-call specific codes/details
 
 DiscoveryError:
 - message with checked paths/inputs
@@ -45,6 +49,7 @@ DiscoveryError:
 - `BARITONE_UNAVAILABLE`
 - `EXECUTION_FAILED`
 - `INTERNAL_ERROR`
+- `API_*` typed-call error family (`API_METHOD_NOT_FOUND`, `API_ARGUMENT_COERCION_FAILED`, etc.)
 
 ### Common mistakes
 

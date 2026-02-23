@@ -22,7 +22,7 @@ from .commands.async_waypoints import AsyncWaypointsCommands
 from .commands.async_world import AsyncWorldCommands
 from .commands._types import CommandDispatchResult
 from .discovery import resolve_bridge_info
-from .models import BridgeError, BridgeInfo
+from .models import BridgeError, BridgeInfo, RemoteRef, TypedCallError
 from .protocol import decode_message, encode_message, new_request
 from .schematic_paths import normalize_build_coords, normalize_schematic_path
 from .settings import AsyncSettingsNamespace
@@ -322,6 +322,50 @@ class Client(
     async def status_unsubscribe(self) -> dict[str, Any]:
         return await self._request("status.unsubscribe", {})
 
+    async def api_metadata_get(self, target: str | RemoteRef | dict[str, Any] | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if target is not None:
+            payload["target"] = _encode_typed_target(target)
+        return await self._request("api.metadata.get", payload)
+
+    async def api_construct(
+        self,
+        type_name: str,
+        *args: Any,
+        parameter_types: list[str] | tuple[str, ...] | None = None,
+    ) -> Any:
+        payload: dict[str, Any] = {
+            "type": type_name,
+            "args": [_encode_typed_value(value) for value in args],
+        }
+        if parameter_types is not None:
+            payload["parameter_types"] = list(parameter_types)
+
+        result = await self._request("api.construct", payload)
+        if "value" not in result:
+            raise BridgeError("BAD_RESPONSE", "Expected value in api.construct result", result)
+        return _decode_typed_value(result["value"])
+
+    async def api_invoke(
+        self,
+        target: str | RemoteRef | dict[str, Any],
+        method: str,
+        *args: Any,
+        parameter_types: list[str] | tuple[str, ...] | None = None,
+    ) -> Any:
+        payload: dict[str, Any] = {
+            "target": _encode_typed_target(target),
+            "method": method,
+            "args": [_encode_typed_value(value) for value in args],
+        }
+        if parameter_types is not None:
+            payload["parameter_types"] = list(parameter_types)
+
+        result = await self._request("api.invoke", payload)
+        if "value" not in result:
+            raise BridgeError("BAD_RESPONSE", "Expected value in api.invoke result", result)
+        return _decode_typed_value(result["value"])
+
     async def execute(self, command: str) -> dict[str, Any]:
         return await self._request("baritone.execute", {"command": command})
 
@@ -458,7 +502,13 @@ class Client(
 
         if not response.get("ok", False):
             error = response.get("error") or {}
-            raise BridgeError(str(error.get("code", "UNKNOWN")), str(error.get("message", "Unknown error")), response)
+            code = str(error.get("code", "UNKNOWN"))
+            message = str(error.get("message", "Unknown error"))
+            details = error.get("data")
+            parsed_details = details if isinstance(details, dict) else {}
+            if method.startswith("api."):
+                raise TypedCallError(code, message, response, parsed_details)
+            raise BridgeError(code, message, response, parsed_details)
 
         result = response.get("result", {})
         if not isinstance(result, dict):
@@ -666,6 +716,43 @@ def _redact_sensitive_payload(payload: EventPayload) -> EventPayload:
         redacted_params["token"] = "***"
     redacted["params"] = redacted_params
     return redacted
+
+
+def _encode_typed_target(target: str | RemoteRef | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(target, RemoteRef):
+        return {"kind": "ref", "id": target.ref_id}
+    if isinstance(target, str):
+        return {"kind": "root", "name": target}
+    if isinstance(target, dict):
+        return target
+    raise TypeError(f"Unsupported typed target: {type(target)!r}")
+
+
+def _encode_typed_value(value: Any) -> Any:
+    if isinstance(value, RemoteRef):
+        payload: dict[str, Any] = {"$pyritone_ref": value.ref_id}
+        if value.java_type:
+            payload["java_type"] = value.java_type
+        return payload
+    if isinstance(value, tuple):
+        return [_encode_typed_value(item) for item in value]
+    if isinstance(value, list):
+        return [_encode_typed_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _encode_typed_value(item) for key, item in value.items()}
+    return value
+
+
+def _decode_typed_value(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_decode_typed_value(item) for item in value]
+    if isinstance(value, dict):
+        reference_id = value.get("$pyritone_ref")
+        if isinstance(reference_id, str) and reference_id:
+            java_type = value.get("java_type")
+            return RemoteRef(reference_id, java_type if isinstance(java_type, str) else None)
+        return {key: _decode_typed_value(item) for key, item in value.items()}
+    return value
 
 
 AsyncPyritoneClient = Client

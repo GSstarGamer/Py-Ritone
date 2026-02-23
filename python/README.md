@@ -73,6 +73,7 @@ python demos/01_connect_discovery.py
   - `PyritoneClient` and `AsyncPyritoneClient` are temporary async aliases of `Client`.
 - Low-level methods:
   - `ping`, `status_get`, `status_subscribe`, `status_unsubscribe`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
+  - Typed API substrate: `api_metadata_get`, `api_construct`, `api_invoke`
 - Command wrappers:
   - All top-level Baritone commands exposed as methods.
 - Local schematic helpers:
@@ -82,6 +83,8 @@ python demos/01_connect_discovery.py
   - `await client.settings.allowPlace.set(True)`
 - State/task cache:
   - `client.state.snapshot`, `client.task.id`, `client.task.state`, `await client.task.wait()`
+- Typed remote references:
+  - `RemoteRef(ref_id=..., java_type=...)` values returned by `api_construct` / `api_invoke`
 
 ## Auto-Discovery (Zero-Setup)
 

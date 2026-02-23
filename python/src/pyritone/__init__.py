@@ -3,7 +3,7 @@ import logging
 from .client_async import AsyncPyritoneClient, Client
 from .client_sync import PyritoneClient
 from .commands import ALIAS_TO_CANONICAL, BARITONE_VERSION, COMMAND_SPECS, CommandArg, CommandDispatchResult
-from .models import BridgeError, BridgeInfo, DiscoveryError
+from .models import BridgeError, BridgeInfo, DiscoveryError, RemoteRef, TypedCallError
 
 __all__ = [
     "ALIAS_TO_CANONICAL",
@@ -17,6 +17,8 @@ __all__ = [
     "CommandDispatchResult",
     "DiscoveryError",
     "PyritoneClient",
+    "RemoteRef",
+    "TypedCallError",
 ]
 
 logging.getLogger("pyritone").addHandler(logging.NullHandler())

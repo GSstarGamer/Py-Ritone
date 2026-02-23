@@ -51,6 +51,11 @@ Command wrappers return awaitable CommandDispatchResult.
 events()/next_event() return event envelope dictionaries.
 client.state caches the latest known status payload.
 client.task exposes active-task convenience accessors.
+Typed API methods are available via:
+- await api_metadata_get(...)
+- await api_construct(...)
+- await api_invoke(...)
+Typed calls may return RemoteRef handles for non-JSON values.
 
 Build helpers:
 - await build_file(...) -> CommandDispatchResult

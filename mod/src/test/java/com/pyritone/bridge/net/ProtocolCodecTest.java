@@ -31,4 +31,16 @@ class ProtocolCodecTest {
         assertEquals("abc", response.get("id").getAsString());
         assertTrue(response.get("ok").getAsBoolean());
     }
+
+    @Test
+    void errorResponseIncludesDataWhenProvided() {
+        JsonObject details = new JsonObject();
+        details.addProperty("field", "value");
+
+        JsonObject response = ProtocolCodec.errorResponse("abc", "API_ERROR", "bad call", details);
+
+        JsonObject error = response.getAsJsonObject("error");
+        assertEquals("API_ERROR", error.get("code").getAsString());
+        assertEquals("value", error.getAsJsonObject("data").get("field").getAsString());
+    }
 }

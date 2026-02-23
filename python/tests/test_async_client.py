@@ -7,7 +7,7 @@ import pytest
 from websockets.asyncio.server import ServerConnection, serve
 
 from pyritone.client_async import AsyncPyritoneClient
-from pyritone.models import BridgeError
+from pyritone.models import BridgeError, RemoteRef, TypedCallError
 from pyritone.protocol import decode_message, encode_message
 
 
@@ -761,6 +761,240 @@ async def test_task_wait_raises_when_no_active_task_is_available():
         with pytest.raises(BridgeError) as error:
             await client.task.wait(timeout=0.2)
         assert error.value.code == "NO_ACTIVE_TASK"
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_api_construct_and_invoke_handle_remote_refs():
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.construct":
+                assert request["params"]["type"] == "tests.SampleBox"
+                assert request["params"]["args"] == [5]
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {
+                                "value": {"$pyritone_ref": "ref-1", "java_type": "tests.SampleBox"},
+                                "java_type": "tests.SampleBox",
+                            },
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.invoke":
+                target = request["params"]["target"]
+                if target == {"kind": "ref", "id": "ref-1"} and request["params"]["method"] == "add":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {"value": 8, "return_type": "int"},
+                            }
+                        )
+                    )
+                    continue
+
+                if target == {"kind": "ref", "id": "ref-1"} and request["params"]["method"] == "child":
+                    await websocket.send(
+                        encode_message(
+                            {
+                                "type": "response",
+                                "id": request["id"],
+                                "ok": True,
+                                "result": {
+                                    "value": {"$pyritone_ref": "ref-2", "java_type": "tests.SampleBox"},
+                                    "return_type": "tests.SampleBox",
+                                },
+                            }
+                        )
+                    )
+                    continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        box = await client.api_construct("tests.SampleBox", 5)
+        assert box == RemoteRef(ref_id="ref-1", java_type="tests.SampleBox")
+
+        add_value = await client.api_invoke(box, "add", 3)
+        assert add_value == 8
+
+        child = await client.api_invoke(box, "child", 2)
+        assert child == RemoteRef(ref_id="ref-2", java_type="tests.SampleBox")
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_api_invoke_uses_root_target_and_parameter_types():
+    observed_payloads: list[dict[str, Any]] = []
+
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.invoke":
+                observed_payloads.append(request["params"])
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"value": "ok", "return_type": "java.lang.String"},
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        result = await client.api_invoke(
+            "baritone",
+            "setFlag",
+            "x",
+            parameter_types=["java.lang.String"],
+        )
+        assert result == "ok"
+        assert observed_payloads == [
+            {
+                "target": {"kind": "root", "name": "baritone"},
+                "method": "setFlag",
+                "args": ["x"],
+                "parameter_types": ["java.lang.String"],
+            }
+        ]
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_api_error_raises_typed_call_error_with_details():
+    async def handler(websocket: ServerConnection):
+        async for message in websocket:
+            request = decode_message(message)
+            method = request.get("method")
+
+            if method == "auth.login":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"protocol_version": 2, "server_version": "test"},
+                        }
+                    )
+                )
+                continue
+
+            if method == "api.invoke":
+                await websocket.send(
+                    encode_message(
+                        {
+                            "type": "response",
+                            "id": request["id"],
+                            "ok": False,
+                            "error": {
+                                "code": "API_ARGUMENT_COERCION_FAILED",
+                                "message": "Bad arg",
+                                "data": {"arg_index": 0, "expected_type": "int"},
+                            },
+                        }
+                    )
+                )
+                continue
+
+            await websocket.send(
+                encode_message(
+                    {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": False,
+                        "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                    }
+                )
+            )
+
+    server, ws_url = await _start_server(handler)
+    client = AsyncPyritoneClient(ws_url=ws_url, token="token")
+    try:
+        await client.connect()
+        with pytest.raises(TypedCallError) as error:
+            await client.api_invoke("baritone", "plus", "oops")
+
+        assert error.value.code == "API_ARGUMENT_COERCION_FAILED"
+        assert error.value.details["arg_index"] == 0
+        assert error.value.details["expected_type"] == "int"
     finally:
         await client.close()
         server.close()

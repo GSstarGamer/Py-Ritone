@@ -47,6 +47,9 @@
 - `status.get {}`
 - `status.subscribe {}`
 - `status.unsubscribe {}`
+- `api.metadata.get {target?}`
+- `api.construct {type,args,parameter_types?}`
+- `api.invoke {target,method,args,parameter_types?}`
 - `baritone.execute {command}`
 - `task.cancel {task_id?}`
 
@@ -68,6 +71,24 @@
 - `data.reason`: `change` or `heartbeat`
 - `data.seq`: session-local increasing sequence for status updates
 - `data.status`: same shape as `status.get` result
+
+### Typed API payloads
+
+- Target object (for `api.metadata.get` and `api.invoke`):
+  - Root target: `{"kind":"root","name":"baritone"}`
+  - Remote ref target: `{"kind":"ref","id":"ref-1"}`
+  - Type target (static metadata/invoke): `{"kind":"type","name":"java.lang.Math"}`
+- Remote reference value envelope:
+  - `{"$pyritone_ref":"ref-1","java_type":"..."}`
+- `api.construct` response:
+  - `result.value`: encoded typed value (primitive/list/map/ref envelope)
+  - `result.java_type`: JVM type name of constructed instance
+- `api.invoke` response:
+  - `result.value`: encoded typed return value
+  - `result.return_type`: JVM return type name
+- `api.metadata.get` response:
+  - `result.metadata_version`
+  - `result.roots` (when no target) and/or `result.type` descriptors (constructors/methods)
 
 ### Pause event payload (`task.paused`)
 
@@ -95,3 +116,14 @@
 - `BARITONE_UNAVAILABLE`
 - `EXECUTION_FAILED`
 - `INTERNAL_ERROR`
+- `API_TARGET_NOT_FOUND`
+- `API_TARGET_UNAVAILABLE`
+- `API_TYPE_NOT_FOUND`
+- `API_REFERENCE_NOT_FOUND`
+- `API_CONSTRUCTOR_NOT_FOUND`
+- `API_METHOD_NOT_FOUND`
+- `API_AMBIGUOUS_CALL`
+- `API_ARGUMENT_COERCION_FAILED`
+- `API_INVOCATION_ERROR`
+
+Typed API errors may include structured details in `error.data`.

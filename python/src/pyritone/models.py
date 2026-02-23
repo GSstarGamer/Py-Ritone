@@ -21,8 +21,25 @@ class DiscoveryError(ValueError):
 
 
 class BridgeError(RuntimeError):
-    def __init__(self, code: str, message: str, payload: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        payload: dict[str, Any] | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
         self.code = code
         self.message = message
         self.payload = payload or {}
+        self.details = details or {}
         super().__init__(f"{code}: {message}")
+
+
+class TypedCallError(BridgeError):
+    pass
+
+
+@dataclass(slots=True, frozen=True)
+class RemoteRef:
+    ref_id: str
+    java_type: str | None = None
