@@ -28,3 +28,6 @@ mod/run/
 # Runtime logs
 mod/logs/
 python/demos/house.schem
+
+# Local chat memory
+chat-context/
