@@ -28,7 +28,7 @@ Each demo uses default discovery (`bridge-info.json` / `PYRITONE_*`) and fails g
 
 | Script | What this demo proves | Run command | Suggested video filename | Video URL |
 |---|---|---|---|---|
-| `01_connect_discovery.py` | Zero-setup discovery + connection/auth + baseline ping/status | `python demos/01_connect_discovery.py` | `01-connect-discovery.mp4.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/01-connect-discovery.mp4.mp4) |
+| `01_connect_discovery.py` | Zero-setup discovery + connection/auth + baseline ping/status | `python demos/01_connect_discovery.py` | `01-connect-discovery.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/01-connect-discovery.mp4) |
 | `02_basic_commands.py` | High-level wrappers plus raw `execute(...)` fallback | `python demos/02_basic_commands.py` | `02-basic-commands.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/02-basic-commands.mp4) |
 | `03_goto_completion.py` | `goto(...)` dispatch + `wait_for_task(...)` with pause/resume update logs | `python demos/03_goto_completion.py 100 70 100` | `03-goto-completion.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/03-goto-completion.mp4) |
 | `04_live_event_feed.py` | Auto-dispatches a high-Y `goto`, then prints concise live task/path event lines | `python demos/04_live_event_feed.py --x 0 --y 1000 --z 0 --max-events 30` | `04-live-event-feed.mp4` | [Watch](https://github.com/GSstarGamer/Py-Ritone/blob/main/python/demos/04-live-event-feed.mp4) |
