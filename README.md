@@ -57,14 +57,8 @@ python demos/01_connect_discovery.py
   - `09` local-path build helper: `python demos/09_build_file_local_path.py "house.schem" --coords 100 -60 100 --wait`
   - `10` CLI entrypoints: `python demos/10_cli_entrypoints.py`
 
-### Featured Video Links
 
-07 mini console:
-https://github.com/user-attachments/assets/f945022c-73aa-416f-aae2-2870aabaa013
-
-
-09 local-path build helper:
-
+<video src="https://files.rionnag.net/raw/07-mini-console-7a791ce6.mp4"></video>
 
 
 ## One-Click Dev Client
