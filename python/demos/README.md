@@ -30,13 +30,13 @@ Each demo uses default discovery (`bridge-info.json` / `PYRITONE_*`) and fails g
 |---|---|---|---|
 | `01_connect_discovery.py` | Zero-setup discovery + connection/auth + baseline ping/status | `python demos/01_connect_discovery.py` | `01-connect-discovery.mp4` |
 | `02_basic_commands.py` | High-level wrappers plus raw `execute(...)` fallback | `python demos/02_basic_commands.py` | `02-basic-commands.mp4` |
-| `03_goto_completion.py` | `goto(...)` dispatch + `wait_for_task(...)` terminal handling | `python demos/03_goto_completion.py 100 70 100` | `03-goto-completion.mp4` |
+| `03_goto_completion.py` | `goto(...)` dispatch + `wait_for_task(...)` with pause/resume update logs | `python demos/03_goto_completion.py 100 70 100` | `03-goto-completion.mp4` |
 | `04_live_event_feed.py` | Auto-dispatches a high-Y `goto`, then prints concise live task/path event lines | `python demos/04_live_event_feed.py --x 0 --y 1000 --z 0 --max-events 30` | `04-live-event-feed.mp4` |
 | `05_cancel_task.py` | Start task, cancel by task id, observe terminal event | `python demos/05_cancel_task.py --delay 1.5` | `05-cancel-task.mp4` |
 | `06_settings_mode_switch.py` | Sync settings API: property assignment + get/set/toggle/reset + presets | `python demos/06_settings_mode_switch.py --mode builder` | `06-settings-mode-switch.mp4` |
 | `07_mini_console.py` | Interactive mini console with dynamic wrapper dispatch | `python demos/07_mini_console.py` | `07-mini-console.mp4` |
-| `08_async_workflow.py` | Async-only concurrency: stream events + heartbeat pings + wait/cancel in parallel | `python demos/08_async_workflow.py 0 1000 0 --cancel-after 6 --heartbeat-interval 1.5` | `08-async-workflow.mp4` |
-| `09_build_file_local_path.py` | `build_file(...)` and local path resolution relative to Python code | `python demos/09_build_file_local_path.py "schematics/base" --coords 100 70 100 --wait` | `09-build-file-local-path.mp4` |
+| `08_async_workflow.py` | Async-only concurrency: heartbeat pings while `wait_for_task(...)` prints pause/resume updates | `python demos/08_async_workflow.py 0 1000 0 --cancel-after 6 --heartbeat-interval 1.5` | `08-async-workflow.mp4` |
+| `09_build_file_local_path.py` | `build_file(...)` + local path resolution + pause-aware wait logs | `python demos/09_build_file_local_path.py "schematics/base" --coords 100 70 100 --wait` | `09-build-file-local-path.mp4` |
 | `10_cli_entrypoints.py` | CLI usage via subprocess (`ping`, `status`, `exec`, `cancel`) | `python demos/10_cli_entrypoints.py` | `10-cli-entrypoints.mp4` |
 
 ## Feature Coverage Matrix
@@ -62,6 +62,11 @@ Each demo uses default discovery (`bridge-info.json` / `PYRITONE_*`) and fails g
 - If bridge socket is unreachable, demos explain that Minecraft + bridge must be running.
 - If `NOT_IN_WORLD` is returned, demos explain to join a world before running world-dependent commands.
 - If `BARITONE_UNAVAILABLE` is returned, demos explain to install/load the Baritone mod.
+
+## Hard Cancel Tip
+
+- To force-end the active tracked task from in-game and immediately unblock waiting Python scripts, run `#pyritone cancel`.
+- Fallback command: `/pyritone cancel`.
 
 ## Good Recording Order
 

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .commands.async_build import AsyncBuildCommands
 from .commands.async_control import AsyncControlCommands
@@ -128,7 +129,12 @@ class AsyncPyritoneClient(
         while not self._closed:
             yield await self.next_event()
 
-    async def wait_for_task(self, task_id: str) -> dict[str, Any]:
+    async def wait_for_task(
+        self,
+        task_id: str,
+        *,
+        on_update: Callable[[dict[str, Any]], Any] | None = None,
+    ) -> dict[str, Any]:
         while True:
             event = await self.next_event()
             event_name = event.get("event")
@@ -141,6 +147,11 @@ class AsyncPyritoneClient(
 
             if isinstance(event_name, str) and event_name in self.TERMINAL_TASK_EVENTS:
                 return event
+
+            if on_update is not None:
+                callback_result = on_update(event)
+                if inspect.isawaitable(callback_result):
+                    await callback_result
 
     async def build_file(
         self,

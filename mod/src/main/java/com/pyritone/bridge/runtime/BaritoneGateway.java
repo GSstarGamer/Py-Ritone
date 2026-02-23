@@ -3,15 +3,19 @@ package com.pyritone.bridge.runtime;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public final class BaritoneGateway {
     private final Logger logger;
@@ -19,6 +23,8 @@ public final class BaritoneGateway {
 
     private volatile Object registeredEventBus;
     private volatile Object registeredListener;
+    private volatile Object registeredCommandManager;
+    private volatile Object registeredPyritoneCommand;
 
     public BaritoneGateway(Logger logger, Consumer<String> pathEventConsumer) {
         this.logger = logger;
@@ -52,6 +58,13 @@ public final class BaritoneGateway {
     public void tickRegisterPathListener() {
         onClientThread(() -> {
             ensurePathListenerOnClientThread();
+            return true;
+        }, false);
+    }
+
+    public void tickRegisterPyritoneHashCommand(Runnable cancelAction) {
+        onClientThread(() -> {
+            ensurePyritoneHashCommandOnClientThread(cancelAction);
             return true;
         }, false);
     }
@@ -136,6 +149,53 @@ public final class BaritoneGateway {
         }
     }
 
+    private void ensurePyritoneHashCommandOnClientThread(Runnable cancelAction) {
+        if (cancelAction == null) {
+            return;
+        }
+
+        try {
+            Object baritone = getPrimaryBaritone();
+            Object commandManager = invokeNoArgs(baritone, "getCommandManager");
+            if (commandManager == null) {
+                return;
+            }
+
+            if (commandManager == registeredCommandManager && registeredPyritoneCommand != null) {
+                return;
+            }
+
+            Object existing = invoke(commandManager, "getCommand", new Class<?>[]{String.class}, new Object[]{"pyritone"});
+            if (existing != null) {
+                registeredCommandManager = commandManager;
+                registeredPyritoneCommand = existing;
+                return;
+            }
+
+            Object registry = invokeNoArgs(commandManager, "getRegistry");
+            if (registry == null) {
+                return;
+            }
+
+            ClassLoader loader = getClass().getClassLoader();
+            Class<?> iCommand = Class.forName("baritone.api.command.ICommand", true, loader);
+            InvocationHandler handler = (proxy, method, args) -> handlePyritoneCommandCall(proxy, method, args, cancelAction);
+            Object commandProxy = Proxy.newProxyInstance(loader, new Class<?>[]{iCommand}, handler);
+
+            Object registered = invoke(registry, "register", new Class<?>[]{Object.class}, new Object[]{commandProxy});
+            boolean accepted = !(registered instanceof Boolean value) || value;
+            if (!accepted) {
+                return;
+            }
+
+            registeredCommandManager = commandManager;
+            registeredPyritoneCommand = commandProxy;
+            logger.info("Registered Baritone hash command: #pyritone");
+        } catch (ReflectiveOperationException exception) {
+            logger.debug("Unable to register #pyritone Baritone command", exception);
+        }
+    }
+
     private ActivitySnapshot activitySnapshotOnClientThread() {
         if (!isClientReady()) {
             return ActivitySnapshot.idle();
@@ -144,13 +204,24 @@ public final class BaritoneGateway {
         try {
             Object baritone = getPrimaryBaritone();
             Object pathingBehavior = tryInvokeNoArgs(baritone, "getPathingBehavior");
+            ControlSnapshot controlSnapshot = detectControlSnapshot(baritone);
+            BuilderSnapshot builderSnapshot = detectBuilderSnapshot(baritone);
 
             boolean isPathing = tryInvokeBooleanNoArgs(pathingBehavior, "isPathing");
             boolean hasPath = detectHasPath(pathingBehavior);
             boolean calcInProgress = detectCalcInProgress(pathingBehavior);
-            boolean processInControlActive = detectProcessInControl(baritone);
+            boolean processInControlActive = controlSnapshot.processInControlActive();
 
-            return new ActivitySnapshot(isPathing, hasPath, calcInProgress, processInControlActive);
+            return new ActivitySnapshot(
+                isPathing,
+                hasPath,
+                calcInProgress,
+                processInControlActive,
+                controlSnapshot.commandType(),
+                controlSnapshot.sourceProcess(),
+                builderSnapshot.active(),
+                builderSnapshot.paused()
+            );
         } catch (ReflectiveOperationException exception) {
             logger.debug("Unable to gather Baritone runtime snapshot", exception);
             return ActivitySnapshot.idle();
@@ -186,33 +257,65 @@ public final class BaritoneGateway {
         if (tryInvokeBooleanNoArgs(pathingBehavior, "isPlanning")) {
             return true;
         }
-        if (tryInvokeNoArgs(pathingBehavior, "getInProgress") != null) {
-            return true;
-        }
-        return tryInvokeNoArgs(pathingBehavior, "getCurrentCalculation") != null;
+        return false;
     }
 
-    private static boolean detectProcessInControl(Object baritone) {
+    private static ControlSnapshot detectControlSnapshot(Object baritone) {
         if (baritone == null) {
-            return false;
+            return ControlSnapshot.empty();
         }
 
         Object pathingControlManager = tryInvokeNoArgs(baritone, "getPathingControlManager");
         if (pathingControlManager == null) {
-            return false;
+            return ControlSnapshot.empty();
         }
 
-        Object inControl = tryInvokeNoArgs(pathingControlManager, "mostRecentInControl");
+        // Prefer current in-control signals; mostRecentInControl can stay latched after work ends.
+        Object inControl = unwrapOptional(tryInvokeNoArgs(pathingControlManager, "inControlThisTick"));
         if (inControl == null) {
-            inControl = tryInvokeNoArgs(pathingControlManager, "inControlThisTick");
+            inControl = unwrapOptional(tryInvokeNoArgs(pathingControlManager, "getInControl"));
         }
         if (inControl == null) {
-            inControl = tryInvokeNoArgs(pathingControlManager, "getInControl");
+            inControl = unwrapOptional(tryInvokeNoArgs(pathingControlManager, "mostRecentInControl"));
         }
 
-        if (inControl instanceof Optional<?> optional) {
-            inControl = optional.orElse(null);
+        boolean processInControlActive = detectProcessActive(inControl);
+        String sourceProcess = detectProcessDisplayName(inControl);
+
+        Object command = unwrapOptional(tryInvokeNoArgs(pathingControlManager, "inControlThisTickCommand"));
+        if (command == null) {
+            command = unwrapOptional(tryInvokeNoArgs(pathingControlManager, "inControlCommand"));
         }
+        if (command == null) {
+            command = unwrapOptional(tryInvokeNoArgs(pathingControlManager, "getCurrentCommand"));
+        }
+        if (command == null) {
+            command = unwrapOptional(tryInvokeNoArgs(pathingControlManager, "mostRecentCommand"));
+        }
+        String commandType = detectPathingCommandType(command);
+
+        return new ControlSnapshot(processInControlActive, sourceProcess, commandType);
+    }
+
+    private static BuilderSnapshot detectBuilderSnapshot(Object baritone) {
+        if (baritone == null) {
+            return BuilderSnapshot.inactive();
+        }
+
+        Object builderProcess = tryInvokeNoArgs(baritone, "getBuilderProcess");
+        if (builderProcess == null) {
+            return BuilderSnapshot.inactive();
+        }
+
+        boolean paused = tryInvokeBooleanNoArgs(builderProcess, "isPaused");
+        boolean active = tryInvokeBooleanNoArgs(builderProcess, "isActive")
+            || tryInvokeBooleanNoArgs(builderProcess, "isBuilding")
+            || paused;
+
+        return new BuilderSnapshot(active, paused);
+    }
+
+    private static boolean detectProcessActive(Object inControl) {
         if (inControl == null) {
             return false;
         }
@@ -230,6 +333,41 @@ public final class BaritoneGateway {
             return !paused;
         }
         return false;
+    }
+
+    private static String detectProcessDisplayName(Object inControl) {
+        if (inControl == null) {
+            return null;
+        }
+
+        Object displayName = tryInvokeNoArgs(inControl, "displayName");
+        if (displayName instanceof String value && !value.isBlank()) {
+            return value;
+        }
+
+        Object displayName0 = tryInvokeNoArgs(inControl, "displayName0");
+        if (displayName0 instanceof String value && !value.isBlank()) {
+            return value;
+        }
+        return null;
+    }
+
+    private static String detectPathingCommandType(Object pathingCommand) {
+        if (pathingCommand == null) {
+            return null;
+        }
+
+        Object commandType = tryReadField(pathingCommand, "commandType");
+        if (commandType == null) {
+            commandType = tryInvokeNoArgs(pathingCommand, "getCommandType");
+        }
+        if (commandType instanceof Enum<?> enumValue) {
+            return enumValue.name();
+        }
+        if (commandType instanceof String value && !value.isBlank()) {
+            return value;
+        }
+        return commandType != null ? String.valueOf(commandType) : null;
     }
 
     private Object handleEventListenerCall(Object proxy, Method method, Object[] args) {
@@ -253,6 +391,85 @@ public final class BaritoneGateway {
         }
 
         return defaultValue(method.getReturnType());
+    }
+
+    private Object handlePyritoneCommandCall(Object proxy, Method method, Object[] args, Runnable cancelAction) {
+        String methodName = method.getName();
+        switch (methodName) {
+            case "execute" -> {
+                String subcommand = extractFirstArg(args);
+                if ("cancel".equals(subcommand)) {
+                    cancelAction.run();
+                }
+                return null;
+            }
+            case "tabComplete" -> {
+                String prefix = extractFirstArg(args);
+                if (prefix.isBlank()) {
+                    return Stream.of("cancel");
+                }
+                return Stream.of("cancel").filter(option -> option.startsWith(prefix));
+            }
+            case "getShortDesc" -> {
+                return "Py-Ritone controls";
+            }
+            case "getLongDesc" -> {
+                return List.of(
+                    "Py-Ritone command bridge",
+                    "Usage: #pyritone cancel"
+                );
+            }
+            case "getNames" -> {
+                return List.of("pyritone");
+            }
+            case "hiddenFromHelp" -> {
+                return false;
+            }
+            default -> {
+                if (method.getDeclaringClass() == Object.class) {
+                    return switch (methodName) {
+                        case "toString" -> "PyritoneCommandProxy";
+                        case "hashCode" -> System.identityHashCode(proxy);
+                        case "equals" -> proxy == (args != null && args.length > 0 ? args[0] : null);
+                        default -> null;
+                    };
+                }
+                return defaultValue(method.getReturnType());
+            }
+        }
+    }
+
+    private static String extractFirstArg(Object[] args) {
+        if (args == null || args.length < 2 || args[1] == null) {
+            return "";
+        }
+
+        Object argConsumer = args[1];
+        Object rawRest = tryInvokeNoArgs(argConsumer, "rawRest");
+        if (rawRest instanceof String text && !text.isBlank()) {
+            return firstToken(text);
+        }
+
+        Object hasAny = tryInvokeNoArgs(argConsumer, "hasAny");
+        if (hasAny instanceof Boolean value && value) {
+            Object peek = tryInvokeNoArgs(argConsumer, "peekString");
+            if (peek instanceof String text && !text.isBlank()) {
+                return firstToken(text);
+            }
+        }
+        return "";
+    }
+
+    private static String firstToken(String text) {
+        String trimmed = text.trim().toLowerCase(Locale.ROOT);
+        if (trimmed.isBlank()) {
+            return "";
+        }
+        int spaceIndex = trimmed.indexOf(' ');
+        if (spaceIndex < 0) {
+            return trimmed;
+        }
+        return trimmed.substring(0, spaceIndex);
     }
 
     private static Object defaultValue(Class<?> returnType) {
@@ -312,6 +529,25 @@ public final class BaritoneGateway {
         return value instanceof Boolean bool && bool;
     }
 
+    private static Object tryReadField(Object target, String fieldName) {
+        if (target == null) {
+            return null;
+        }
+        try {
+            Field field = target.getClass().getField(fieldName);
+            return field.get(target);
+        } catch (ReflectiveOperationException exception) {
+            return null;
+        }
+    }
+
+    private static Object unwrapOptional(Object value) {
+        if (value instanceof Optional<?> optional) {
+            return optional.orElse(null);
+        }
+        return value;
+    }
+
     private static Object invoke(Object target, String methodName, Class<?>[] parameterTypes, Object[] values) throws ReflectiveOperationException {
         return target.getClass().getMethod(methodName, parameterTypes).invoke(target, values);
     }
@@ -358,14 +594,71 @@ public final class BaritoneGateway {
         boolean isPathing,
         boolean hasPath,
         boolean calcInProgress,
-        boolean processInControlActive
+        boolean processInControlActive,
+        String commandType,
+        String sourceProcess,
+        boolean builderActive,
+        boolean builderPaused
     ) {
         public boolean isBusy() {
-            return isPathing || hasPath || calcInProgress || processInControlActive;
+            // `hasPath` can remain true briefly (or stale) even after real work ends.
+            // Busy should track active motion/calc/build work only.
+            return isPathing || calcInProgress || builderActive;
+        }
+
+        public boolean isPaused() {
+            return builderPaused
+                || (processInControlActive
+                    && ("REQUEST_PAUSE".equals(commandType) || "SET_GOAL_AND_PAUSE".equals(commandType)));
+        }
+
+        public String pauseReasonCode() {
+            if (!isPaused()) {
+                return null;
+            }
+            if (builderPaused) {
+                return "BUILDER_PAUSED";
+            }
+            if ("SET_GOAL_AND_PAUSE".equals(commandType)) {
+                return "SET_GOAL_AND_PAUSE";
+            }
+            if ("REQUEST_PAUSE".equals(commandType)) {
+                return "REQUEST_PAUSE";
+            }
+            return "PAUSED";
         }
 
         public static ActivitySnapshot idle() {
-            return new ActivitySnapshot(false, false, false, false);
+            return new ActivitySnapshot(
+                false,
+                false,
+                false,
+                false,
+                null,
+                null,
+                false,
+                false
+            );
         }
     }
+
+    private record ControlSnapshot(
+        boolean processInControlActive,
+        String sourceProcess,
+        String commandType
+    ) {
+        private static ControlSnapshot empty() {
+            return new ControlSnapshot(false, null, null);
+        }
+    }
+
+    private record BuilderSnapshot(
+        boolean active,
+        boolean paused
+    ) {
+        private static BuilderSnapshot inactive() {
+            return new BuilderSnapshot(false, false);
+        }
+    }
+
 }

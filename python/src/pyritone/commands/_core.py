@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from ..models import BridgeError
 from ._types import CommandArg, CommandDispatchResult
@@ -10,7 +10,12 @@ class AsyncCommandClient(Protocol):
     async def execute(self, command: str) -> dict[str, Any]:
         ...
 
-    async def wait_for_task(self, task_id: str) -> dict[str, Any]:
+    async def wait_for_task(
+        self,
+        task_id: str,
+        *,
+        on_update: Callable[[dict[str, Any]], Any] | None = None,
+    ) -> dict[str, Any]:
         ...
 
 
@@ -18,7 +23,12 @@ class SyncCommandClient(Protocol):
     def execute(self, command: str) -> dict[str, Any]:
         ...
 
-    def wait_for_task(self, task_id: str) -> dict[str, Any]:
+    def wait_for_task(
+        self,
+        task_id: str,
+        *,
+        on_update: Callable[[dict[str, Any]], Any] | None = None,
+    ) -> dict[str, Any]:
         ...
 
 

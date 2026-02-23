@@ -19,6 +19,16 @@ public final class PyritoneCommand {
                             context.getSource().sendFeedback(Text.literal(mod.commandStatusLine()));
                             return 1;
                         }))
+                    .then(ClientCommandManager.literal("cancel")
+                        .executes(context -> {
+                            boolean canceled = mod.forceCancelActiveTaskFromPyritoneCommand();
+                            if (canceled) {
+                                context.getSource().sendFeedback(Text.literal("Requested hard cancel for active Py-Ritone task"));
+                            } else {
+                                context.getSource().sendFeedback(Text.literal("No active Py-Ritone task"));
+                            }
+                            return 1;
+                        }))
                     .then(ClientCommandManager.literal("bridge-info")
                         .executes(context -> {
                             context.getSource().sendFeedback(Text.literal(mod.bridgeInfoPath().toString()));

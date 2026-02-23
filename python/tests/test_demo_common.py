@@ -51,6 +51,28 @@ def test_terminal_summary_messages():
     assert common.terminal_summary(failed) == "Task failed: No path"
 
 
+def test_summarize_pause_update_prefers_reason_and_source():
+    common = _load_common_module()
+
+    paused = {
+        "event": "task.paused",
+        "data": {
+            "task_id": "a",
+            "pause": {
+                "reason_code": "BUILDER_PAUSED",
+                "source_process": "builder",
+            },
+        },
+    }
+    resumed = {
+        "event": "task.resumed",
+        "data": {"task_id": "a", "pause": {"reason_code": "BUILDER_PAUSED"}},
+    }
+
+    assert common.summarize_pause_update(paused) == "task.paused: reason=BUILDER_PAUSED, source=builder"
+    assert common.summarize_pause_update(resumed).startswith("task.resumed: reason=BUILDER_PAUSED")
+
+
 def test_friendly_error_message_mapping():
     common = _load_common_module()
 

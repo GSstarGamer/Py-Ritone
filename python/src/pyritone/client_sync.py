@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .client_async import AsyncPyritoneClient
 from .commands.sync_build import SyncBuildCommands
@@ -55,6 +55,8 @@ class PyritoneClient(
     SyncInfoCommands,
     SyncWaypointsCommands,
 ):
+    TERMINAL_TASK_EVENTS = AsyncPyritoneClient.TERMINAL_TASK_EVENTS
+
     def __init__(
         self,
         *,
@@ -110,8 +112,27 @@ class PyritoneClient(
     def next_event(self, timeout: float | None = None) -> dict[str, Any]:
         return self._runner.run(self._client.next_event(timeout=timeout))
 
-    def wait_for_task(self, task_id: str) -> dict[str, Any]:
-        return self._runner.run(self._client.wait_for_task(task_id))
+    def wait_for_task(
+        self,
+        task_id: str,
+        *,
+        on_update: Callable[[dict[str, Any]], Any] | None = None,
+    ) -> dict[str, Any]:
+        while True:
+            event = self.next_event()
+            event_name = event.get("event")
+            data = event.get("data")
+            if not isinstance(data, dict):
+                continue
+
+            if data.get("task_id") != task_id:
+                continue
+
+            if isinstance(event_name, str) and event_name in self.TERMINAL_TASK_EVENTS:
+                return event
+
+            if on_update is not None:
+                on_update(event)
 
     def build_file(
         self,

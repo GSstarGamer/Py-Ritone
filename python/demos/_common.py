@@ -60,6 +60,34 @@ def summarize_event(event: dict[str, Any]) -> str:
     return base
 
 
+def pause_payload(event: dict[str, Any]) -> dict[str, Any] | None:
+    data = event.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    pause = data.get("pause")
+    if isinstance(pause, dict):
+        return pause
+    return None
+
+
+def summarize_pause_update(event: dict[str, Any]) -> str:
+    event_name = str(event.get("event"))
+    pause = pause_payload(event) or {}
+
+    reason = pause.get("reason_code")
+    if not isinstance(reason, str) or not reason:
+        reason = "PAUSED"
+
+    source_process = pause.get("source_process")
+    if isinstance(source_process, str) and source_process:
+        source_text = f", source={source_process}"
+    else:
+        source_text = ""
+
+    return f"{event_name}: reason={reason}{source_text}"
+
+
 def task_reason(event: dict[str, Any]) -> str | None:
     data = event.get("data")
     if not isinstance(data, dict):

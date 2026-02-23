@@ -18,7 +18,10 @@ with PyritoneClient() as client:
 
     task_id = dispatch.get("task_id")
     if task_id:
-        terminal = client.wait_for_task(task_id)
+        def on_update(event):
+            print("update:", event["event"])
+
+        terminal = client.wait_for_task(task_id, on_update=on_update)
         print(terminal["event"], terminal["data"])
 ```
 
@@ -33,7 +36,7 @@ try:
     dispatch = await client.goto(100, 70, 100)
     task_id = dispatch.get("task_id")
     if task_id:
-        terminal = await client.wait_for_task(task_id)
+        terminal = await client.wait_for_task(task_id, on_update=lambda event: print("update:", event["event"]))
         print(terminal["event"], terminal["data"])
 finally:
     await client.close()
@@ -49,11 +52,24 @@ Task terminal event envelope:
 - ts: ISO-8601 timestamp
 ```
 
+```text
+Non-terminal update events for the same task_id:
+- task.progress
+- task.paused
+- task.resumed
+```
+
 ### Terminal timing semantics
 
 - `wait_for_task(task_id)` now waits for stable terminal state, not the first raw path hint.
 - Internal Baritone recalculations can emit temporary `baritone.path_event` values like `CANCELED` or `CALC_FAILED`; those are treated as hints until the task is truly idle.
 - This prevents early exits during long `goto`, `build`, and recalculation-heavy flows.
+- During pause states (for example builder pause or user pause), `wait_for_task(...)` keeps waiting and can report updates through `on_update`.
+
+### Hard stop from in-game
+
+- Use `#pyritone cancel` (or `/pyritone cancel`) to hard-cancel the active tracked task.
+- Hard cancel emits `task.canceled` immediately so waiting Python scripts end right away.
 
 ### Common mistakes
 

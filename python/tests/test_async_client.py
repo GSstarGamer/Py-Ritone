@@ -159,6 +159,115 @@ async def test_wait_for_task_returns_terminal_event_for_matching_task_id():
 
 
 @pytest.mark.asyncio
+async def test_wait_for_task_on_update_receives_non_terminal_matching_events():
+    async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        try:
+            while True:
+                line = await reader.readline()
+                if not line:
+                    break
+
+                request = decode_line(line)
+                method = request.get("method")
+
+                if method == "auth.login":
+                    response = {
+                        "type": "response",
+                        "id": request["id"],
+                        "ok": True,
+                        "result": {"protocol_version": 1, "server_version": "test"},
+                    }
+                    writer.write(encode_line(response))
+
+                    writer.write(
+                        encode_line(
+                            {
+                                "type": "event",
+                                "event": "task.progress",
+                                "data": {"task_id": "other", "detail": "skip me"},
+                                "ts": "2026-01-01T00:00:00Z",
+                            }
+                        )
+                    )
+                    writer.write(
+                        encode_line(
+                            {
+                                "type": "event",
+                                "event": "task.progress",
+                                "data": {"task_id": "target", "detail": "Working"},
+                                "ts": "2026-01-01T00:00:01Z",
+                            }
+                        )
+                    )
+                    writer.write(
+                        encode_line(
+                            {
+                                "type": "event",
+                                "event": "task.paused",
+                                "data": {
+                                    "task_id": "target",
+                                    "pause": {"reason_code": "BUILDER_PAUSED"},
+                                },
+                                "ts": "2026-01-01T00:00:02Z",
+                            }
+                        )
+                    )
+                    writer.write(
+                        encode_line(
+                            {
+                                "type": "event",
+                                "event": "task.resumed",
+                                "data": {"task_id": "target"},
+                                "ts": "2026-01-01T00:00:03Z",
+                            }
+                        )
+                    )
+                    writer.write(
+                        encode_line(
+                            {
+                                "type": "event",
+                                "event": "task.completed",
+                                "data": {"task_id": "target"},
+                                "ts": "2026-01-01T00:00:04Z",
+                            }
+                        )
+                    )
+                    await writer.drain()
+                    continue
+
+                response = {
+                    "type": "response",
+                    "id": request["id"],
+                    "ok": False,
+                    "error": {"code": "METHOD_NOT_FOUND", "message": "Unknown"},
+                }
+                writer.write(encode_line(response))
+                await writer.drain()
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    server = await asyncio.start_server(handler, "127.0.0.1", 0)
+    host, port = server.sockets[0].getsockname()[:2]
+
+    updates: list[str] = []
+
+    client = AsyncPyritoneClient(host=host, port=port, token="token")
+    try:
+        await client.connect()
+        terminal = await client.wait_for_task(
+            "target",
+            on_update=lambda event: updates.append(str(event.get("event"))),
+        )
+        assert terminal["event"] == "task.completed"
+        assert updates == ["task.progress", "task.paused", "task.resumed"]
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
 async def test_goto_returns_dispatch_result_immediately():
     recorded_commands: list[str] = []
 

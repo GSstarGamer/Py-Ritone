@@ -10,9 +10,9 @@ import com.pyritone.bridge.net.ProtocolCodec;
 import com.pyritone.bridge.net.SocketBridgeServer;
 import com.pyritone.bridge.runtime.BaritoneGateway;
 import com.pyritone.bridge.runtime.TaskRegistry;
+import com.pyritone.bridge.runtime.TaskLifecycleResolver;
 import com.pyritone.bridge.runtime.TaskSnapshot;
 import com.pyritone.bridge.runtime.TaskState;
-import com.pyritone.bridge.runtime.TaskLifecycleResolver;
 import com.pyritone.bridge.runtime.WatchPatternRegistry;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -64,6 +64,7 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             baritoneGateway.tickRegisterPathListener();
+            baritoneGateway.tickRegisterPyritoneHashCommand(this::forceCancelActiveTaskFromPyritoneCommand);
             baritoneGateway.tickApplyPyritoneChatBranding();
             tickTaskLifecycle();
         });
@@ -118,6 +119,10 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         }
     }
     private boolean handleOutgoingChat(String message) {
+        if (message != null && message.trim().equalsIgnoreCase("#pyritone cancel")) {
+            forceCancelActiveTaskFromPyritoneCommand();
+            return false;
+        }
         emitWatchMatches("chat", message);
         return true;
     }
@@ -333,6 +338,35 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         return ProtocolCodec.successResponse(id, result);
     }
 
+    public boolean forceCancelActiveTaskFromPyritoneCommand() {
+        Optional<TaskSnapshot> active = taskRegistry.active();
+        if (active.isEmpty()) {
+            emitPyritoneNotice("No active Py-Ritone task to cancel");
+            return false;
+        }
+
+        TaskSnapshot snapshot = active.orElseThrow();
+        String detail = "Canceled by #pyritone cancel";
+
+        if (!baritoneGateway.isAvailable()) {
+            detail = "Canceled by #pyritone cancel (Baritone unavailable)";
+            emitPyritoneNotice("Hard cancel: Baritone unavailable, force-ending tracked task");
+        } else {
+            BaritoneGateway.Outcome outcome = baritoneGateway.cancelCurrent();
+            if (outcome.ok()) {
+                emitPyritoneNotice("Hard cancel accepted");
+            } else {
+                detail = "Canceled by #pyritone cancel (" + compactCommand(outcome.message()) + ")";
+                emitPyritoneNotice("Hard cancel forced task end even though Baritone cancel returned an error");
+            }
+        }
+
+        taskLifecycleResolver.clearForTask(snapshot.taskId());
+        taskRegistry.transitionActive(TaskState.CANCELED, detail)
+            .ifPresent(canceled -> emitTaskEvent("task.canceled", canceled, "pyritone_cancel_command"));
+        return true;
+    }
+
     private void onPathEvent(String pathEventName) {
         JsonObject data = new JsonObject();
         data.addProperty("path_event", pathEventName);
@@ -348,8 +382,6 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
         TaskSnapshot current = active.orElseThrow();
         taskLifecycleResolver.recordPathEvent(current.taskId(), pathEventName);
-        taskRegistry.updateActiveDetail(pathEventDetail(pathEventName))
-            .ifPresent(snapshot -> emitTaskEvent("task.progress", snapshot, pathEventName));
     }
 
     private void tickTaskLifecycle() {
@@ -360,27 +392,41 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         }
 
         TaskSnapshot current = active.orElseThrow();
-        Optional<TaskLifecycleResolver.TerminalDecision> terminal = taskLifecycleResolver.evaluate(
+        Optional<TaskLifecycleResolver.LifecycleUpdate> lifecycleUpdate = taskLifecycleResolver.evaluate(
             current.taskId(),
             baritoneGateway.activitySnapshot()
         );
 
-        if (terminal.isEmpty()) {
+        if (lifecycleUpdate.isEmpty()) {
             return;
         }
 
-        TaskLifecycleResolver.TerminalDecision decision = terminal.orElseThrow();
-        taskRegistry.transitionActive(decision.state(), decision.detail())
-            .ifPresent(snapshot -> emitTaskEvent(decision.eventName(), snapshot, decision.stage()));
+        TaskLifecycleResolver.LifecycleUpdate update = lifecycleUpdate.orElseThrow();
+        switch (update.kind()) {
+            case PAUSED -> handlePausedUpdate(current, update.pauseStatus());
+            case RESUMED -> handleResumedUpdate(current, update.pauseStatus());
+            case TERMINAL -> {
+                TaskLifecycleResolver.TerminalDecision decision = update.terminalDecision();
+                if (decision == null) {
+                    return;
+                }
+                taskRegistry.transitionActive(decision.state(), decision.detail())
+                    .ifPresent(snapshot -> emitTaskEvent(decision.eventName(), snapshot, decision.stage()));
+            }
+        }
     }
 
-    private static String pathEventDetail(String pathEventName) {
-        return switch (pathEventName) {
-            case "AT_GOAL" -> "Reached goal (awaiting stable idle)";
-            case "CANCELED" -> "Baritone canceled (awaiting stable idle)";
-            case "CALC_FAILED", "NEXT_CALC_FAILED" -> "Path calculation failed (awaiting stable idle)";
-            default -> "Path event: " + pathEventName;
-        };
+    private void handlePausedUpdate(TaskSnapshot current, TaskLifecycleResolver.PauseStatus pauseStatus) {
+        String detail = pauseStatusDetail(pauseStatus);
+        Optional<TaskSnapshot> updated = taskRegistry.updateActiveDetail(detail);
+        TaskSnapshot snapshot = updated.orElse(current);
+        emitPauseEvent("task.paused", snapshot, pauseStatus);
+    }
+
+    private void handleResumedUpdate(TaskSnapshot current, TaskLifecycleResolver.PauseStatus pauseStatus) {
+        Optional<TaskSnapshot> updated = taskRegistry.updateActiveDetail("Resumed after pause");
+        TaskSnapshot snapshot = updated.orElse(current);
+        emitPauseEvent("task.resumed", snapshot, pauseStatus);
     }
 
     private void emitTaskEvent(String eventName, TaskSnapshot taskSnapshot, String stage) {
@@ -389,6 +435,40 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             data.addProperty("stage", stage);
         }
         publishEvent(eventName, data);
+    }
+
+    private void emitPauseEvent(String eventName, TaskSnapshot taskSnapshot, TaskLifecycleResolver.PauseStatus pauseStatus) {
+        JsonObject data = taskSnapshot.toJson();
+        data.addProperty("stage", eventName);
+        data.add("pause", pauseStatusToJson(pauseStatus));
+        publishEvent(eventName, data);
+    }
+
+    private static JsonObject pauseStatusToJson(TaskLifecycleResolver.PauseStatus pauseStatus) {
+        JsonObject object = new JsonObject();
+        if (pauseStatus == null) {
+            object.addProperty("reason_code", "PAUSED");
+            object.addProperty("source_process", "");
+            object.addProperty("command_type", "");
+            return object;
+        }
+
+        object.addProperty("reason_code", safeString(pauseStatus.reasonCode()));
+        object.addProperty("source_process", safeString(pauseStatus.sourceProcess()));
+        object.addProperty("command_type", safeString(pauseStatus.commandType()));
+        return object;
+    }
+
+    private static String pauseStatusDetail(TaskLifecycleResolver.PauseStatus pauseStatus) {
+        if (pauseStatus == null) {
+            return "Paused";
+        }
+
+        return "Paused (" + safeString(pauseStatus.reasonCode()) + ")";
+    }
+
+    private static String safeString(String value) {
+        return value == null ? "" : value;
     }
 
     private void publishEvent(String eventName, JsonObject data) {
