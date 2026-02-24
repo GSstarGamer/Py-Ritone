@@ -1823,5 +1823,6 @@ def _decode_typed_value(value: Any) -> Any:
 
 
 # Compatibility aliases retained for the v0.2.x migration window.
+AsyncClient = Client
 AsyncPyritoneClient = Client
 PyritoneClient = Client

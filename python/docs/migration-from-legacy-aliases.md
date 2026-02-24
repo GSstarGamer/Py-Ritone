@@ -1,48 +1,59 @@
 # Migration From Legacy Client Aliases
 
-Move existing code to `pyritone.Client` as the canonical async entry point.
+Move existing code after `pyritone.Client` switched to the Discord-style event client.
 
 ### When to use this
 
 - Your code imports `PyritoneClient` or `AsyncPyritoneClient`.
-- You want a low-risk rename pass without changing behavior.
+- You previously used `from pyritone import Client` for async transport workflows.
 
-### Recommended import and flow
+### Event-style default (`Client`)
+
+```python
+import pyritone
+
+client = pyritone.client()
+
+
+@client.event
+async def on_ready() -> None:
+    print("connected")
+
+
+client.connect()
+```
+
+### Raw async migration target
+
+```text
+If your old code used:
+  from pyritone import Client
+for async/await transport control, migrate to:
+  from pyritone import AsyncPyritoneClient
+or:
+  from pyritone import AsyncClient
+```
+
+### Raw async example
 
 ```python
 import asyncio
-from pyritone import Client
+from pyritone import AsyncPyritoneClient
 
 
 async def main() -> None:
-    async with Client() as client:
+    async with AsyncPyritoneClient() as client:
         print(await client.ping())
-        print(await client.status_get())
 
 
 asyncio.run(main())
 ```
 
-### Alias status
-
-```text
-PyritoneClient and AsyncPyritoneClient are temporary compatibility aliases to Client.
-All client methods are async and must be awaited.
-```
-
-### Compatibility window
-
-```text
-Release policy for v0.2.x keeps these aliases and generated sync command shims
-as soft-deprecated migration cushions.
-Planned removal target: no earlier than v0.3.0.
-```
-
 ### Common mistakes
 
-- Keeping old import names in new docs/examples.
-- Treating alias names as sync clients.
-- Mixing `Client` and alias names in the same code style guide.
+- Keeping async examples on top-level `Client`.
+- Expecting `client.connect()` on top-level `Client` to be awaitable.
+- Mixing decorator event style and raw async style in the same entrypoint.
 
 ### Related methods
 

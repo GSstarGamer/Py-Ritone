@@ -1,7 +1,8 @@
 package com.pyritone.bridge;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.pyritone.bridge.command.PyritoneCommand;
 import com.pyritone.bridge.config.BridgeConfig;
@@ -11,6 +12,7 @@ import com.pyritone.bridge.net.ProtocolCodec;
 import com.pyritone.bridge.net.WebSocketBridgeServer;
 import com.pyritone.bridge.runtime.BaritoneGateway;
 import com.pyritone.bridge.runtime.EntityTypeSelector;
+import com.pyritone.bridge.runtime.PlayerLifecycleTracker;
 import com.pyritone.bridge.runtime.StatusSubscriptionRegistry;
 import com.pyritone.bridge.runtime.TaskRegistry;
 import com.pyritone.bridge.runtime.TaskLifecycleResolver;
@@ -19,12 +21,16 @@ import com.pyritone.bridge.runtime.TaskState;
 import com.pyritone.bridge.runtime.TypedApiException;
 import com.pyritone.bridge.runtime.TypedApiService;
 import com.pyritone.bridge.runtime.WatchPatternRegistry;
+import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
@@ -41,8 +47,10 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
@@ -73,6 +81,10 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
     private final WatchPatternRegistry watchPatternRegistry = new WatchPatternRegistry();
     private final StatusSubscriptionRegistry statusSubscriptionRegistry = new StatusSubscriptionRegistry();
     private final TypedApiService typedApiService = new TypedApiService(PyritoneBridgeClientMod.class.getClassLoader());
+    private final PlayerLifecycleTracker playerLifecycleTracker = new PlayerLifecycleTracker();
+    private boolean playerLifecycleInWorld;
+    private boolean playerLifecycleSelfJoinEmitted;
+    private PlayerLifecycleTracker.PlayerSnapshot lastKnownSelfPlayer;
 
     private final Object pauseStateLock = new Object();
     private volatile boolean operatorPauseActive;
@@ -107,9 +119,14 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
             );
             baritoneGateway.tickApplyPyritoneChatBranding();
             tickPauseState(client);
+            tickPlayerLifecycleEvents(client);
             tickTaskLifecycle();
             tickStatusStreams();
         });
+        ClientReceiveMessageEvents.CHAT.register(
+            (message, signedMessage, sender, params, receptionTimestamp) -> onIncomingChatMessage(message, sender)
+        );
+        ClientReceiveMessageEvents.GAME.register(this::onIncomingSystemMessage);
         ClientSendMessageEvents.ALLOW_CHAT.register(this::handleOutgoingChat);
         ClientSendMessageEvents.ALLOW_COMMAND.register(this::handleOutgoingCommand);
 
@@ -211,6 +228,10 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
 
     private void shutdownBridgeServer() {
         clearPauseStateForShutdown();
+        playerLifecycleTracker.reset();
+        playerLifecycleInWorld = false;
+        playerLifecycleSelfJoinEmitted = false;
+        lastKnownSelfPlayer = null;
         statusSubscriptionRegistry.clear();
         typedApiService.clear();
         if (this.server != null) {
@@ -414,6 +435,8 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         result.addProperty("in_world", baritoneGateway.isInWorld());
         result.add("active_task", taskRegistry.activeAsJson());
         result.add("watch_patterns", watchPatternRegistry.toJsonArray());
+        JsonObject player = currentPlayerPayload(MinecraftClient.getInstance());
+        result.add("player", player != null ? player : JsonNull.INSTANCE);
         return result;
     }
 
@@ -648,6 +671,86 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         setGamePauseActive(paused);
     }
 
+    private void tickPlayerLifecycleEvents(MinecraftClient client) {
+        if (client == null || client.world == null || client.getNetworkHandler() == null) {
+            if (playerLifecycleInWorld && lastKnownSelfPlayer != null) {
+                emitPlayerLifecycleEvent("minecraft.player_leave", lastKnownSelfPlayer);
+            }
+            playerLifecycleTracker.reset();
+            playerLifecycleInWorld = false;
+            playerLifecycleSelfJoinEmitted = false;
+            lastKnownSelfPlayer = null;
+            return;
+        }
+
+        if (!playerLifecycleInWorld) {
+            playerLifecycleInWorld = true;
+            playerLifecycleSelfJoinEmitted = false;
+        }
+
+        Map<String, Boolean> aliveByUuid = new HashMap<>();
+        String localPlayerUuid = null;
+        if (client.player != null) {
+            localPlayerUuid = client.player.getUuidAsString();
+        }
+
+        for (PlayerEntity player : client.world.getPlayers()) {
+            if (player == null) {
+                continue;
+            }
+            String uuid = player.getUuidAsString();
+            if (uuid == null || uuid.isBlank()) {
+                continue;
+            }
+            aliveByUuid.put(uuid, player.isAlive());
+        }
+
+        List<PlayerLifecycleTracker.PlayerSnapshot> players = new ArrayList<>();
+        PlayerLifecycleTracker.PlayerSnapshot selfSnapshot = null;
+        for (PlayerListEntry entry : client.getNetworkHandler().getPlayerList()) {
+            if (entry == null || entry.getProfile() == null || entry.getProfile().getId() == null) {
+                continue;
+            }
+            String uuid = entry.getProfile().getId().toString();
+            String name = entry.getProfile().getName();
+            if (name == null || name.isBlank()) {
+                name = "unknown";
+            }
+            boolean self = localPlayerUuid != null && localPlayerUuid.equals(uuid);
+            Boolean aliveValue = aliveByUuid.get(uuid);
+            boolean aliveKnown = aliveValue != null;
+            boolean alive = aliveKnown && aliveValue;
+            PlayerLifecycleTracker.PlayerSnapshot snapshot =
+                new PlayerLifecycleTracker.PlayerSnapshot(uuid, name, alive, self, aliveKnown);
+            players.add(snapshot);
+            if (self) {
+                selfSnapshot = snapshot;
+            }
+        }
+
+        List<PlayerLifecycleTracker.PlayerEvent> events = playerLifecycleTracker.update(players);
+        for (PlayerLifecycleTracker.PlayerEvent event : events) {
+            String eventName = switch (event.type()) {
+                case JOIN -> "minecraft.player_join";
+                case LEAVE -> "minecraft.player_leave";
+                case DEATH -> "minecraft.player_death";
+                case RESPAWN -> "minecraft.player_respawn";
+            };
+            emitPlayerLifecycleEvent(eventName, event.player());
+            if (event.type() == PlayerLifecycleTracker.PlayerEventType.JOIN
+                && event.player() != null
+                && event.player().self()) {
+                playerLifecycleSelfJoinEmitted = true;
+            }
+        }
+
+        if (!playerLifecycleSelfJoinEmitted && selfSnapshot != null) {
+            emitPlayerLifecycleEvent("minecraft.player_join", selfSnapshot);
+            playerLifecycleSelfJoinEmitted = true;
+        }
+        lastKnownSelfPlayer = selfSnapshot;
+    }
+
     private void tickTaskLifecycle() {
         Optional<TaskSnapshot> active = taskRegistry.active();
         if (active.isEmpty()) {
@@ -731,6 +834,65 @@ public final class PyritoneBridgeClientMod implements ClientModInitializer {
         data.addProperty("seq", emission.sequence());
         data.add("status", status);
         currentServer.publishEvent(session, ProtocolCodec.eventEnvelope("status.update", data));
+    }
+
+    private void onIncomingChatMessage(Text message, GameProfile sender) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        JsonObject authorPayload = null;
+        if (sender != null) {
+            String uuid = sender.getId() != null ? sender.getId().toString() : null;
+            String name = sender.getName() != null && !sender.getName().isBlank() ? sender.getName() : "unknown";
+            boolean self = false;
+            if (client != null && client.player != null && uuid != null && !uuid.isBlank()) {
+                self = uuid.equals(client.player.getUuidAsString());
+            }
+            authorPayload = playerPayload(uuid, name, self);
+        }
+        emitChatMessageEvent(message != null ? message.getString() : "", authorPayload);
+    }
+
+    private void onIncomingSystemMessage(Text message, boolean overlay) {
+        JsonObject data = new JsonObject();
+        data.addProperty("message", message != null ? message.getString() : "");
+        data.addProperty("overlay", overlay);
+        publishEvent("minecraft.system_message", data);
+    }
+
+    private void emitChatMessageEvent(String message, JsonObject author) {
+        JsonObject data = new JsonObject();
+        data.addProperty("message", message == null ? "" : message);
+        data.add("author", author != null ? author : JsonNull.INSTANCE);
+        publishEvent("minecraft.chat_message", data);
+    }
+
+    private void emitPlayerLifecycleEvent(String eventName, PlayerLifecycleTracker.PlayerSnapshot player) {
+        if (player == null) {
+            return;
+        }
+        JsonObject data = new JsonObject();
+        data.add("player", playerPayload(player.uuid(), player.name(), player.self()));
+        publishEvent(eventName, data);
+    }
+
+    private static JsonObject playerPayload(String uuid, String name, boolean self) {
+        JsonObject payload = new JsonObject();
+        if (uuid != null && !uuid.isBlank()) {
+            payload.addProperty("uuid", uuid);
+        } else {
+            payload.add("uuid", JsonNull.INSTANCE);
+        }
+        payload.addProperty("name", name == null || name.isBlank() ? "unknown" : name);
+        payload.addProperty("self", self);
+        return payload;
+    }
+
+    private static JsonObject currentPlayerPayload(MinecraftClient client) {
+        if (client == null || client.player == null) {
+            return null;
+        }
+        String uuid = client.player.getUuidAsString();
+        String name = client.player.getName() != null ? client.player.getName().getString() : "unknown";
+        return playerPayload(uuid, name, true);
     }
 
     private void handlePausedUpdate(TaskSnapshot current, TaskLifecycleResolver.PauseStatus pauseStatus) {

@@ -8,20 +8,39 @@
 pip install pyritone
 ```
 
-## Fastest Working Async Example
+## Fastest Working Event Example (Default)
+
+```python
+import pyritone
+
+client = pyritone.client()
+
+
+@client.event
+async def on_ready() -> None:
+    print("connected to client")
+
+
+@client.event
+async def on_chat_message(ctx: pyritone.minecraft.chat.message) -> None:
+    print(ctx.message)
+
+
+client.connect()
+```
+
+## Raw Async Client Example
 
 ```python
 import asyncio
-from pyritone import Client
+from pyritone import AsyncPyritoneClient
 
 
 async def main() -> None:
-    client = Client()
+    client = AsyncPyritoneClient()
     await client.connect()
     try:
         print(await client.ping())
-        dispatch = await client.build_file("schematics/base.schem", 100, 70, 100)
-        print(dispatch)
     finally:
         await client.close()
 
@@ -65,8 +84,7 @@ Run from repo root:
 
 ```bash
 python -m pip install -e ./python
-cd python
-python demos/01_connect_discovery.py
+python python/demos/02_on_events_chat.py
 ```
 
 ## Docs
@@ -74,6 +92,7 @@ python demos/01_connect_discovery.py
 - Full docs index: `python/docs/index.md`
 - Quickstart: `python/docs/quickstart.md`
 - Async client guide: `python/docs/async-client.md`
+- Event guide: `python/docs/tasks-events-and-waiting.md`
 - Legacy import migration: `python/docs/migration-from-legacy-aliases.md`
 - Settings API: `python/docs/settings-api.md`
 - Tasks/events/waiting: `python/docs/tasks-events-and-waiting.md`
@@ -95,8 +114,9 @@ python demos/01_connect_discovery.py
 ## Public API Map
 
 - Clients:
-  - `Client` (primary async surface)
-  - Legacy aliases (`PyritoneClient`, `AsyncPyritoneClient`) are compatibility-only; use `Client` in docs and new code.
+  - `Client` / `pyritone.client()` (Discord-style event client; default surface)
+  - `AsyncClient` / `AsyncPyritoneClient` (raw async transport surface)
+  - Legacy alias `PyritoneClient` maps to raw async client for compatibility.
 - Low-level methods:
   - `ping`, `status_get`, `status_subscribe`, `status_unsubscribe`, `execute`, `cancel`, `next_event`, `wait_for`, `wait_for_task`
   - `execute(...)` is an advanced raw command path; prefer generated command wrappers and typed APIs in new code.
@@ -130,10 +150,14 @@ python demos/01_connect_discovery.py
 
 ## Compatibility Policy (v0.2.x)
 
-- `PyritoneClient` and `AsyncPyritoneClient` remain exported as temporary compatibility aliases.
+- `Client` now targets Discord-style event usage (`@client.event`, `client.run()/client.connect()`).
+- For prior async code that used `from pyritone import Client`, migrate imports to:
+  - `from pyritone import AsyncPyritoneClient`
+  - or `from pyritone import AsyncClient`
+- `PyritoneClient` and `AsyncPyritoneClient` remain exported compatibility aliases for raw async workflows.
 - Generated sync command shim modules (`python/src/pyritone/commands/sync_*.py`) remain for migration cushioning.
 - Both compatibility surfaces are soft-deprecated and planned for removal no earlier than `v0.3.0`.
-- Keep new docs/examples on `Client` + async command/typed APIs; use raw `execute(...)` only for advanced/interop cases.
+- Keep new docs/examples on event `Client`; use raw async client when you need direct transport-level control.
 
 ## Auto-Discovery (Zero-Setup)
 

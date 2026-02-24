@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from pyritone import BridgeError, Client
+from pyritone import AsyncPyritoneClient, BridgeError
 from pyritone.minecraft import entities
 
 EMPTY_POLL_DELAY_SECONDS = 0.0
@@ -17,7 +17,7 @@ def _format_error(error: BaseException) -> str:
 
 
 async def main() -> None:
-    async with Client() as client:
+    async with AsyncPyritoneClient() as client:
         player = await client.get_player()
         print("Connected. Walking nearest mobs...")
 

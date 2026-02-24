@@ -1,6 +1,9 @@
 # Async Client
 
-Guide for `Client` in asyncio code.
+Guide for raw async transport client in asyncio code.
+
+`from pyritone import Client` now resolves to the Discord-style event client.
+For async transport-level usage, import `AsyncPyritoneClient` (or `AsyncClient`).
 
 ### When to use this
 
@@ -11,11 +14,11 @@ Guide for `Client` in asyncio code.
 
 ```python
 import asyncio
-from pyritone import Client
+from pyritone import AsyncPyritoneClient
 
 
 async def main() -> None:
-    async with Client() as client:
+    async with AsyncPyritoneClient() as client:
         print(await client.ping())
         print(await client.status_get())
         await client.status_subscribe()
@@ -41,7 +44,7 @@ asyncio.run(main())
 
 ### Logging
 
-`Client` logs to logger name `pyritone`:
+`AsyncPyritoneClient` logs to logger name `pyritone`:
 
 - `INFO` (default): connection lifecycle + command-send actions
 - `INFO` also includes bridge pause/resume transitions (`State paused` / `State resumed`)
@@ -109,7 +112,7 @@ Build helpers:
 
 ### Common mistakes
 
-- Calling command methods before entering `async with Client()`.
+- Calling command methods before entering `async with AsyncPyritoneClient()`.
 - Leaking client sessions by skipping context management.
 - Passing 1 or 2 coordinates to `build_file` (must be 0 or 3).
 - Assuming relative paths are from cwd; default is caller file directory.

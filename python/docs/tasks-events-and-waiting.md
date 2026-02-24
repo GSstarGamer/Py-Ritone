@@ -12,11 +12,11 @@ How to handle dispatch, task IDs, and terminal task events.
 
 ```python
 import asyncio
-from pyritone import Client
+from pyritone import AsyncPyritoneClient
 
 
 async def main() -> None:
-    async with Client() as client:
+    async with AsyncPyritoneClient() as client:
         dispatch = await client.goto(100, 70, 100)
         task_id = dispatch.get("task_id")
         if task_id:
@@ -43,6 +43,19 @@ Non-terminal update events for the same task_id:
 - task.paused
 - task.resumed
 ```
+
+### Discord-style Event Client (Default)
+
+- Top-level `Client` / `pyritone.client()` now supports decorator events:
+  - `on_ready`, `on_disconnect`, `on_error`
+  - `on_chat_message` / `on_message` (alias pair)
+  - `on_system_message`
+  - `on_player_join`, `on_player_leave`, `on_player_death`, `on_player_respawn`
+  - `on_status_update`, `on_path_event`, `on_task_*`
+- High-level events support `wait_for(...)` names like:
+  - `message`, `chat_message`, `player_join`
+- Raw dotted names still pass through for transport-level waits:
+  - `task.progress`, `status.update`, etc.
 
 ### Terminal timing semantics
 

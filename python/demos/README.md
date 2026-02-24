@@ -1,6 +1,6 @@
 # Pyritone Demos
 
-## Current Demo
+## Available Demos
 
 1. `01_nearest_entity_walk.py`
    - Source: copied from `python/test.py`.
@@ -9,6 +9,18 @@
 
 ```bash
 python python/demos/01_nearest_entity_walk.py
+```
+
+2. `02_on_events_chat.py`
+   - Purpose: Discord-style event API (`@client.event`) with blocking `client.connect()`.
+   - Includes handlers for:
+     - `on_ready` / `on_disconnect`
+     - `on_chat_message` / `on_system_message`
+     - `on_player_join` / `on_player_leave` / `on_player_death` / `on_player_respawn`
+   - Run from repo root:
+
+```bash
+python python/demos/02_on_events_chat.py
 ```
 
 ## Notes

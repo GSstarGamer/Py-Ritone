@@ -85,6 +85,15 @@ Behavior notes:
 - `label` (optional): human-readable notice string shown in the in-game
   `Python execute: ...` bridge message while still executing `command`.
 
+### `status.get` / `status.update` status fields
+
+- `status.player`:
+  - object with local player identity when available:
+    - `uuid`
+    - `name`
+    - `self` (`true` for local player snapshot)
+  - `null` when local player identity is unavailable (not in-world / disconnected state).
+
 ## Events
 
 - `task.started`
@@ -97,6 +106,12 @@ Behavior notes:
 - `baritone.path_event`
 - `bridge.pause_state`
 - `chat.match` (optional watch pattern signal)
+- `minecraft.chat_message`
+- `minecraft.system_message`
+- `minecraft.player_join`
+- `minecraft.player_leave`
+- `minecraft.player_death`
+- `minecraft.player_respawn`
 - `status.update`
 
 ### Status update payload (`status.update`)
@@ -104,6 +119,40 @@ Behavior notes:
 - `data.reason`: `change` or `heartbeat`
 - `data.seq`: session-local increasing sequence for status updates
 - `data.status`: same shape as `status.get` result
+
+### Chat message payload (`minecraft.chat_message`)
+
+- `data.message`: chat text
+- `data.author`:
+  - object with:
+    - `uuid` (nullable)
+    - `name`
+    - `self`
+  - `null` when sender identity is unavailable
+- Event stream notes:
+  - Emitted from received global chat lines (single stream, no inbound/outbound split).
+  - Includes local-player messages when the server echoes them to the client chat feed.
+
+### System message payload (`minecraft.system_message`)
+
+- `data.message`: system text
+- `data.overlay`: whether this was action-bar style overlay text
+
+### Player lifecycle payloads
+
+- `minecraft.player_join`
+- `minecraft.player_leave`
+- `minecraft.player_death`
+- `minecraft.player_respawn`
+- Shared payload shape:
+  - `data.player`:
+    - `uuid` (nullable)
+    - `name`
+    - `self`
+- Lifecycle notes:
+  - Events include the local player (`self=true`), including world-enter (`player_join`) and world-exit (`player_leave`) transitions.
+  - `player_leave` is debounced for a short tick window to avoid false leave/join pairs during transient entity unloads.
+  - `player_respawn` is emitted only on a known dead->alive transition; unknown alive snapshots do not force respawn.
 
 ### Typed API payloads
 

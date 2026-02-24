@@ -1,4 +1,4 @@
-from . import blocks, entities, items
+from . import blocks, chat, entities, items, player
 from ._identifiers import (
     BlockId,
     BlockLike,
@@ -21,9 +21,11 @@ __all__ = [
     "ItemLike",
     "MinecraftIdentifier",
     "blocks",
+    "chat",
     "coerce_block_id",
     "coerce_entity_id",
     "coerce_item_id",
     "entities",
     "items",
+    "player",
 ]

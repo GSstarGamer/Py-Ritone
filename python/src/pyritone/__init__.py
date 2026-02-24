@@ -1,7 +1,8 @@
 import logging
 
 from .baritone import BaritoneNamespace, GoalRef, TypedTaskHandle, TypedTaskResult
-from .client_async import AsyncPyritoneClient, Client
+from .client_async import AsyncPyritoneClient, Client as AsyncClient
+from .client_event import Client, EventClient
 from .client_sync import PyritoneClient
 from .commands import ALIAS_TO_CANONICAL, BARITONE_VERSION, COMMAND_SPECS, CommandArg, CommandDispatchResult
 from . import minecraft
@@ -9,6 +10,7 @@ from .models import BridgeError, BridgeInfo, DiscoveryError, RemoteRef, TypedCal
 
 __all__ = [
     "ALIAS_TO_CANONICAL",
+    "AsyncClient",
     "AsyncPyritoneClient",
     "BARITONE_VERSION",
     "BaritoneNamespace",
@@ -19,6 +21,7 @@ __all__ = [
     "CommandArg",
     "CommandDispatchResult",
     "DiscoveryError",
+    "EventClient",
     "GoalRef",
     "PyritoneClient",
     "RemoteRef",
@@ -27,7 +30,12 @@ __all__ = [
     "TypedCallError",
     "VisibleEntity",
     "minecraft",
+    "client",
 ]
+
+
+def client(**kwargs) -> Client:
+    return Client(**kwargs)
 
 
 def _configure_default_logger() -> None:

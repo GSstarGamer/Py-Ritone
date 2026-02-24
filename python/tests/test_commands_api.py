@@ -2,6 +2,7 @@ import pytest
 
 import pyritone
 from pyritone.client_async import AsyncPyritoneClient, Client
+from pyritone.client_event import Client as EventClient
 from pyritone.client_sync import PyritoneClient
 from pyritone.commands import ALIAS_METHOD_NAMES, ALIAS_TO_CANONICAL, COMMAND_METHOD_NAMES, COMMAND_SPECS
 from pyritone.commands._core import build_command_text
@@ -65,9 +66,12 @@ def test_clients_expose_all_generated_methods():
         assert getattr(PyritoneClient, method_name).__doc__
 
 
-def test_pyritone_client_is_async_alias():
+def test_pyritone_exports_event_client_and_async_aliases():
     assert PyritoneClient is Client
-    assert pyritone.Client is Client
+    assert pyritone.Client is EventClient
+    assert pyritone.EventClient is EventClient
+    assert pyritone.AsyncClient is Client
+    assert pyritone.AsyncPyritoneClient is AsyncPyritoneClient
 
 
 @pytest.mark.asyncio
